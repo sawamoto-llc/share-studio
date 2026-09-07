@@ -64,6 +64,7 @@
   #stage { position: absolute; inset: 0; display: flex; background: #000; }
   #mainWrap { position: relative; height: 100%; background: #000; }
   #video { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
+  #photo { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
   #frame { width: 100%; height: 100%; border: none; display: none; background: #fff; }
   #camWrap { position: relative; flex: 1; height: 100%; background: #111; overflow: hidden; }
   #camWrap video { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -124,7 +125,7 @@
   <div class="lead">動画や脳トレのページと、スタッフの顔を1つの画面に並べます。<br>この画面ごと noiz で画面共有してください。</div>
 
   <div id="menuGrid">
-    <button class="menuBtn" id="pickBtn">📂 動画を流す<small>パソコンの中のMP4を選ぶ</small></button>
+    <button class="menuBtn" id="pickBtn">📂 ファイルを開く<small>動画・PDF・写真・音声</small></button>
     <button class="menuBtn" id="noutoreBtn">🧩 脳トレ素材集<small>クロスワード・作る言葉など</small></button>
     <button class="menuBtn alt" id="webBtn" style="grid-column: 1 / -1;">🌐 ウェブページ<small>ページのURLを入力して開く</small></button>
   </div>
@@ -147,7 +148,7 @@
     <b>noiz 側の自分のカメラはオフでOK</b>です(この画面に顔が映るため)。<br>
     動画の音は、画面共有のとき「<b>音声も共有</b>」の設定で届けます。
   </div>
-  <input type="file" id="fileInput" accept="video/*" style="display:none">
+  <input type="file" id="fileInput" accept="video/*,audio/*,image/*,application/pdf" style="display:none">
 </div>
 
 <!-- スタジオ画面 -->
@@ -155,6 +156,7 @@
   <div id="stage">
     <div id="mainWrap">
       <video id="video" playsinline></video>
+      <img id="photo" alt="">
       <iframe id="frame" allow="autoplay; encrypted-media; picture-in-picture; fullscreen"></iframe>
       <div id="endedOverlay"><button id="replayBtn">🔁 もう一度さいしょから</button></div>
     </div>
@@ -196,6 +198,7 @@
   var playerScreen = document.getElementById('playerScreen');
   var fileInput = document.getElementById('fileInput');
   var video = document.getElementById('video');
+  var photo = document.getElementById('photo');
   var frame = document.getElementById('frame');
   var cam = document.getElementById('cam');
   var camOff = document.getElementById('camOff');
@@ -361,7 +364,8 @@
     mode = newMode;
     controls.className = 'mode-' + newMode;
     video.style.display = (newMode === 'video') ? 'block' : 'none';
-    frame.style.display = (newMode === 'page') ? 'block' : 'none';
+    photo.style.display = (newMode === 'image') ? 'block' : 'none';
+    frame.style.display = (newMode === 'page' || newMode === 'pdf') ? 'block' : 'none';
     startScreen.style.display = 'none';
     playerScreen.style.display = 'block';
     endedOverlay.style.display = 'none';
@@ -372,6 +376,7 @@
     video.pause();
     video.removeAttribute('src');
     video.load();
+    photo.removeAttribute('src');
     frame.src = 'about:blank';
     playerScreen.style.display = 'none';
     startScreen.style.display = 'flex';
@@ -381,14 +386,27 @@
   }
   document.getElementById('menuBtn').addEventListener('click', backToMenu);
 
-  // ---- 動画モード ----
+  // ---- ファイルモード(動画・音声・写真・PDF) ----
   document.getElementById('pickBtn').addEventListener('click', function () { fileInput.click(); });
   fileInput.addEventListener('change', function () {
     var file = fileInput.files[0];
     if (!file) return;
-    video.src = URL.createObjectURL(file);
-    enterStudio('video');
-    video.play().catch(function () {});
+    var name = (file.name || '').toLowerCase();
+    var type = file.type || '';
+    var url = URL.createObjectURL(file);
+    if (type.indexOf('video/') === 0 || type.indexOf('audio/') === 0) {
+      video.src = url;
+      enterStudio('video');
+      video.play().catch(function () {});
+    } else if (type.indexOf('image/') === 0) {
+      photo.src = url;
+      enterStudio('image');
+    } else if (type === 'application/pdf' || /\.pdf$/.test(name)) {
+      frame.src = url;
+      enterStudio('pdf');
+    } else {
+      alert('このファイルの形式は開けません。\n動画(MP4など)・PDF・写真(JPG/PNG)・音声(MP3)が使えます。\nWordやExcel、PowerPointの資料は「PDFで保存」してから開いてください。');
+    }
     fileInput.value = '';
   });
 
