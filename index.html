@@ -126,8 +126,7 @@
   <div id="menuGrid">
     <button class="menuBtn" id="pickBtn">📂 動画を流す<small>パソコンの中のMP4を選ぶ</small></button>
     <button class="menuBtn" id="noutoreBtn">🧩 脳トレ素材集<small>クロスワード・作る言葉など</small></button>
-    <button class="menuBtn alt" id="ytBtn">▶️ YouTube<small>動画のURLを貼り付けて再生</small></button>
-    <button class="menuBtn alt" id="webBtn">🌐 ウェブページ<small>好きなページのURLを入力</small></button>
+    <button class="menuBtn alt" id="webBtn" style="grid-column: 1 / -1;">🌐 ウェブページ<small>ページのURLを入力して開く</small></button>
   </div>
 
   <div id="urlRow">
@@ -215,7 +214,6 @@
   var camStream = null;
   var mode = 'video';        // 'video' | 'page'
   var pageHomeUrl = '';      // ページモードで最初に開いたURL
-  var urlMode = 'web';       // URL入力欄の用途 'web' | 'yt'
 
   // ---- 覚えておく設定 ----
   function loadPref(key, fallback) {
@@ -305,7 +303,7 @@
     if (!camStream && savedCamId) startCamera(undefined);
   });
 
-  // ---- YouTubeのURLを埋め込み用に変換 ----
+  // ---- 動画ページのURLは公式の埋め込みプレイヤー表示に変換(全画面できれいに映すため) ----
   function toEmbedUrl(raw) {
     var url;
     try { url = new URL(raw); } catch (e) { return null; }
@@ -404,7 +402,7 @@
     var finalLabel = label;
     if (!finalLabel) {
       if (embed) {
-        finalLabel = '▶️ YouTubeの動画';
+        finalLabel = '▶️ 動画のページ';
       } else {
         try {
           var u = new URL(finalUrl);
@@ -423,29 +421,17 @@
     openPage(NOUTORE_URL, '🧩 脳トレ素材集');
   });
 
-  function showUrlRow(kind) {
-    urlMode = kind;
+  document.getElementById('webBtn').addEventListener('click', function () {
     urlRow.classList.add('show');
-    urlHint.classList.toggle('show', kind === 'web');
+    urlHint.classList.add('show');
     urlInput.value = '';
-    urlInput.placeholder = (kind === 'yt')
-      ? 'YouTubeの動画のURLをここに貼り付け(例: https://www.youtube.com/watch?v=…)'
-      : 'ページのURLをここに入力(例: game.onlinedayservice.com)';
+    urlInput.placeholder = 'ページのURLをここに入力・貼り付け(例: game.onlinedayservice.com)';
     urlInput.focus();
-  }
-  document.getElementById('ytBtn').addEventListener('click', function () { showUrlRow('yt'); });
-  document.getElementById('webBtn').addEventListener('click', function () { showUrlRow('web'); });
+  });
 
   function goUrl() {
     var v = urlInput.value.trim();
     if (!v) return;
-    if (urlMode === 'yt') {
-      var embed = toEmbedUrl(/^https?:\/\//i.test(v) ? v : 'https://' + v);
-      if (!embed) {
-        alert('YouTubeの動画のURLではないようです。\n動画ページのURL(youtube.com/watch?v=… や youtu.be/…)を貼り付けてください。');
-        return;
-      }
-    }
     openPage(v);
   }
   document.getElementById('urlGo').addEventListener('click', goUrl);
