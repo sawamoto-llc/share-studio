@@ -450,9 +450,10 @@
   });
 
   // 🔍 インターネット: 押したらすぐ検索画面(同じサイト内の search.html)を窓に開く
+  // 検索画面は毎回サーバーから取り直す(?t=…)。古い版がキャッシュで残り続けるのを防ぐ
   document.getElementById('webBtn').addEventListener('click', function () {
-    pageHomeUrl = 'search.html';
-    frame.src = 'search.html';
+    pageHomeUrl = 'search.html?t=' + Date.now();
+    frame.src = pageHomeUrl;
     enterStudio('page');
   });
 
