@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>けんさく</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #f5f2ea; color: #333;
+    font-family: "BIZ UDPGothic", "Yu Gothic UI", "Meiryo", sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 30px; padding: 24px; text-align: center;
+  }
+  h1 { font-size: 30px; color: #2e7d32; }
+  form.search { display: flex; gap: 10px; width: min(640px, 94%); }
+  form.search input {
+    flex: 1; font-size: 24px; padding: 16px 18px; border-radius: 999px; border: 2px solid #bbb;
+  }
+  form.search input:focus { outline: none; border-color: #2e7d32; }
+  form.search button {
+    font-size: 22px; padding: 14px 34px; border: none; border-radius: 999px;
+    background: #2e7d32; color: #fff; cursor: pointer; white-space: nowrap;
+  }
+  form.search button:hover { background: #4caf50; }
+  .urlRow { display: flex; gap: 8px; width: min(560px, 94%); }
+  .urlRow input {
+    flex: 1; font-size: 16px; padding: 10px 12px; border-radius: 10px; border: 1px solid #bbb;
+  }
+  .urlRow button {
+    font-size: 16px; padding: 10px 20px; border: none; border-radius: 10px;
+    background: #5c6bc0; color: #fff; cursor: pointer; white-space: nowrap;
+  }
+  .miniTitle { font-size: 14px; color: #999; margin-bottom: -22px; }
+  .note { font-size: 14px; color: #999; line-height: 1.8; max-width: 600px; }
+</style>
+</head>
+<body>
+  <h1>🔍 インターネットで調べる</h1>
+
+  <form class="search" action="https://www.bing.com/search" method="get">
+    <input type="text" name="q" placeholder="調べたい言葉を入力" autofocus autocomplete="off">
+    <button type="submit">検索</button>
+  </form>
+
+  <div class="miniTitle">ホームページのURLが分かっているとき</div>
+  <div class="urlRow">
+    <input type="text" id="urlInput" placeholder="URLを入力・貼り付け">
+    <button id="urlGo">開く</button>
+  </div>
+
+  <div class="note">
+    ※GoogleやYahoo!は、この窓の中では表示できない決まりになっています(検索は上の窓からどうぞ)。<br>
+    ほかにも一部、窓の中に表示できないホームページがあります(白いまま/エラーになります)。
+  </div>
+
+<script>
+  function openUrl() {
+    var v = document.getElementById('urlInput').value.trim();
+    if (!v) return;
+    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    location.href = v;
+  }
+  document.getElementById('urlGo').addEventListener('click', openUrl);
+  document.getElementById('urlInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') openUrl();
+  });
+</script>
+</body>
+</html>

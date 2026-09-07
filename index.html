@@ -127,14 +127,8 @@
   <div id="menuGrid">
     <button class="menuBtn" id="pickBtn">📂 ファイルを開く<small>動画・PDF・写真・音声</small></button>
     <button class="menuBtn" id="noutoreBtn">🧩 脳トレ素材集<small>クロスワード・作る言葉など</small></button>
-    <button class="menuBtn alt" id="webBtn" style="grid-column: 1 / -1;">🌐 ウェブページ<small>ページのURLを入力して開く</small></button>
+    <button class="menuBtn alt" id="webBtn" style="grid-column: 1 / -1;">🔍 インターネット<small>すぐに検索画面がひらく(URLでも開ける)</small></button>
   </div>
-
-  <div id="urlRow">
-    <input type="text" id="urlInput" placeholder="">
-    <button id="urlGo">開く</button>
-  </div>
-  <div id="urlHint">※Google検索など、窓の中に表示できない作りのサイトもあります(その場合は白いまま/エラーが出ます)</div>
 
   <div id="recentWrap">
     <div class="miniTitle">最近開いたページ</div>
@@ -211,9 +205,6 @@
   var timeLabel = document.getElementById('timeLabel');
   var playBtn = document.getElementById('playBtn');
   var endedOverlay = document.getElementById('endedOverlay');
-  var urlRow = document.getElementById('urlRow');
-  var urlInput = document.getElementById('urlInput');
-  var urlHint = document.getElementById('urlHint');
   var camStream = null;
   var mode = 'video';        // 'video' | 'page'
   var pageHomeUrl = '';      // ページモードで最初に開いたURL
@@ -380,8 +371,6 @@
     frame.src = 'about:blank';
     playerScreen.style.display = 'none';
     startScreen.style.display = 'flex';
-    urlRow.classList.remove('show');
-    urlHint.classList.remove('show');
     renderRecents();
   }
   document.getElementById('menuBtn').addEventListener('click', backToMenu);
@@ -439,21 +428,12 @@
     openPage(NOUTORE_URL, '🧩 脳トレ素材集');
   });
 
+  // 🔍 インターネット: 押したらすぐ検索画面(同じサイト内の search.html)を窓に開く
   document.getElementById('webBtn').addEventListener('click', function () {
-    urlRow.classList.add('show');
-    urlHint.classList.add('show');
-    urlInput.value = '';
-    urlInput.placeholder = 'ページのURLをここに入力・貼り付け(例: game.onlinedayservice.com)';
-    urlInput.focus();
+    pageHomeUrl = 'search.html';
+    frame.src = 'search.html';
+    enterStudio('page');
   });
-
-  function goUrl() {
-    var v = urlInput.value.trim();
-    if (!v) return;
-    openPage(v);
-  }
-  document.getElementById('urlGo').addEventListener('click', goUrl);
-  urlInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') goUrl(); });
 
   document.getElementById('pageBack').addEventListener('click', function () { history.back(); });
   document.getElementById('pageHome').addEventListener('click', function () { frame.src = pageHomeUrl; });
