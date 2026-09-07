@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>画面共有スタジオ|オンラインデイサービス長老大学</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+<style>
+  :root {
+    --accent: #2e7d32;
+    --accent-light: #4caf50;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #000; font-family: "BIZ UDPGothic", "Yu Gothic UI", "Meiryo", sans-serif; overflow: hidden; }
+
+  /* ===== メニュー画面 ===== */
+  #startScreen {
+    position: absolute; inset: 0; z-index: 50;
+    background: #f5f2ea; color: #333;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 22px; padding: 24px; text-align: center; overflow-y: auto;
+  }
+  #startScreen h1 { font-size: 32px; color: var(--accent); }
+  #startScreen .lead { font-size: 17px; color: #666; line-height: 1.7; }
+  #menuGrid { display: grid; grid-template-columns: repeat(2, minmax(220px, 280px)); gap: 14px; }
+  .menuBtn {
+    font-size: 22px; padding: 22px 10px; border: none; border-radius: 16px;
+    background: var(--accent); color: #fff; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,.18);
+    line-height: 1.4;
+  }
+  .menuBtn small { display: block; font-size: 14px; opacity: .85; margin-top: 4px; }
+  .menuBtn:hover { background: var(--accent-light); }
+  .menuBtn.alt { background: #5c6bc0; }
+  .menuBtn.alt:hover { background: #7986cb; }
+
+  #urlRow { display: none; gap: 8px; width: min(680px, 92%); }
+  #urlRow.show { display: flex; }
+  #urlInput {
+    flex: 1; font-size: 19px; padding: 12px 14px; border-radius: 10px; border: 2px solid #bbb;
+  }
+  #urlGo { font-size: 19px; padding: 12px 26px; border: none; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer; }
+  #urlHint { font-size: 14px; color: #888; display: none; }
+  #urlHint.show { display: block; }
+
+  #recentWrap { display: none; flex-direction: column; gap: 8px; align-items: center; }
+  #recentWrap.show { display: flex; }
+  #recentWrap .miniTitle { font-size: 14px; color: #999; }
+  #recentBtns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 760px; }
+  .recentBtn {
+    font-size: 15px; padding: 8px 14px; border-radius: 999px; border: 1px solid #bbb;
+    background: #fff; color: #444; cursor: pointer; max-width: 320px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  .recentBtn:hover { background: #eee; }
+
+  #camStatus { font-size: 17px; color: #666; }
+  #camStatus.ok { color: var(--accent); font-weight: bold; }
+  #camStatus.ng { color: #c62828; font-weight: bold; }
+  #camRetry { display: none; font-size: 17px; padding: 9px 22px; border-radius: 10px; border: 2px solid #c62828; background: #fff; color: #c62828; cursor: pointer; }
+  #startScreen .note { font-size: 15px; color: #888; max-width: 660px; line-height: 1.8; }
+
+  /* ===== スタジオ画面 ===== */
+  #playerScreen { position: absolute; inset: 0; display: none; }
+  #stage { position: absolute; inset: 0; display: flex; background: #000; }
+  #mainWrap { position: relative; height: 100%; background: #000; }
+  #video { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
+  #frame { width: 100%; height: 100%; border: none; display: none; background: #fff; }
+  #camWrap { position: relative; flex: 1; height: 100%; background: #111; overflow: hidden; }
+  #camWrap video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #camWrap video.mirror { transform: scaleX(-1); }
+  #camOff {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    color: #aaa; font-size: 19px; text-align: center; line-height: 1.8; padding: 10px;
+  }
+
+  #endedOverlay {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.45);
+  }
+  #replayBtn {
+    font-size: 28px; padding: 20px 48px; border: none; border-radius: 16px;
+    background: var(--accent); color: #fff; cursor: pointer;
+  }
+
+  /* ===== 操作バー ===== */
+  #controls {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 60;
+    background: rgba(20,20,20,.92); color: #eee;
+    padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 8px;
+    transition: opacity .3s; opacity: 1;
+  }
+  #controls.hidden { opacity: 0; pointer-events: none; }
+  #seekRow { display: none; align-items: center; gap: 12px; }
+  #seek { flex: 1; height: 10px; cursor: pointer; accent-color: var(--accent-light); }
+  #timeLabel { font-size: 16px; min-width: 110px; text-align: right; font-variant-numeric: tabular-nums; }
+  #btnRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cbtn {
+    font-size: 17px; padding: 10px 14px; border: none; border-radius: 10px;
+    background: #3a3a3a; color: #fff; cursor: pointer; white-space: nowrap;
+  }
+  .cbtn:hover { background: #555; }
+  #playBtn { font-size: 22px; padding: 10px 30px; background: var(--accent); }
+  #playBtn:hover { background: var(--accent-light); }
+  .grow { flex: 1; }
+  .miniLabel { font-size: 14px; color: #bbb; white-space: nowrap; }
+  #ratio { width: 120px; accent-color: var(--accent-light); }
+  #volume { width: 100px; accent-color: var(--accent-light); }
+  #camSelect { font-size: 15px; padding: 6px; border-radius: 8px; max-width: 200px; background:#3a3a3a; color:#fff; border:1px solid #555; }
+  .videoOnly, .pageOnly { display: none; }
+  #controls.mode-video .videoOnly { display: inline-block; }
+  #controls.mode-video #seekRow { display: flex; }
+  #controls.mode-page .pageOnly { display: inline-block; }
+
+  @media (max-width: 700px) {
+    #menuGrid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- メニュー画面 -->
+<div id="startScreen">
+  <h1>🎬 画面共有スタジオ</h1>
+  <div class="lead">動画や脳トレのページと、スタッフの顔を1つの画面に並べます。<br>この画面ごと noiz で画面共有してください。</div>
+
+  <div id="menuGrid">
+    <button class="menuBtn" id="pickBtn">📂 動画を流す<small>パソコンの中のMP4を選ぶ</small></button>
+    <button class="menuBtn" id="noutoreBtn">🧩 脳トレ素材集<small>クロスワード・作る言葉など</small></button>
+    <button class="menuBtn alt" id="ytBtn">▶️ YouTube<small>動画のURLを貼り付けて再生</small></button>
+    <button class="menuBtn alt" id="webBtn">🌐 ウェブページ<small>好きなページのURLを入力</small></button>
+  </div>
+
+  <div id="urlRow">
+    <input type="text" id="urlInput" placeholder="">
+    <button id="urlGo">開く</button>
+  </div>
+  <div id="urlHint">※Google検索など、窓の中に表示できない作りのサイトもあります(その場合は白いまま/エラーが出ます)</div>
+
+  <div id="recentWrap">
+    <div class="miniTitle">最近開いたページ</div>
+    <div id="recentBtns"></div>
+  </div>
+
+  <div id="camStatus">カメラ: 準備中…</div>
+  <button id="camRetry">カメラをもう一度ためす</button>
+  <div class="note">
+    カメラの許可を聞かれたら「<b>許可する</b>」を押してください。<br>
+    <b>noiz 側の自分のカメラはオフでOK</b>です(この画面に顔が映るため)。<br>
+    動画の音は、画面共有のとき「<b>音声も共有</b>」の設定で届けます。
+  </div>
+  <input type="file" id="fileInput" accept="video/*" style="display:none">
+</div>
+
+<!-- スタジオ画面 -->
+<div id="playerScreen">
+  <div id="stage">
+    <div id="mainWrap">
+      <video id="video" playsinline></video>
+      <iframe id="frame" allow="autoplay; encrypted-media; picture-in-picture; fullscreen"></iframe>
+      <div id="endedOverlay"><button id="replayBtn">🔁 もう一度さいしょから</button></div>
+    </div>
+    <div id="camWrap">
+      <video id="cam" autoplay muted playsinline class="mirror"></video>
+      <div id="camOff">カメラが使えません<br>(下の「カメラ」から選び直せます)</div>
+    </div>
+  </div>
+
+  <div id="controls" class="mode-video">
+    <div id="seekRow">
+      <input type="range" id="seek" min="0" max="1000" value="0">
+      <span id="timeLabel">0:00 / 0:00</span>
+    </div>
+    <div id="btnRow">
+      <button class="cbtn" id="menuBtn">🏠 メニュー</button>
+      <button class="cbtn videoOnly" id="playBtn">▶ 再生</button>
+      <button class="cbtn videoOnly" id="back10">⏪ 10秒</button>
+      <button class="cbtn videoOnly" id="fwd10">10秒 ⏩</button>
+      <span class="miniLabel videoOnly">音量</span>
+      <input type="range" id="volume" min="0" max="100" value="100" class="videoOnly">
+      <button class="cbtn pageOnly" id="pageBack">◀ 戻る</button>
+      <button class="cbtn pageOnly" id="pageHome">🔝 最初のページ</button>
+      <span class="grow"></span>
+      <span class="miniLabel">画面の割合</span>
+      <input type="range" id="ratio" min="50" max="80" value="65">
+      <button class="cbtn" id="mirrorBtn">🪞 鏡</button>
+      <select id="camSelect" title="カメラを選ぶ"></select>
+      <button class="cbtn" id="fsBtn">⛶ 全画面</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var NOUTORE_URL = 'https://game.onlinedayservice.com/';
+
+  var startScreen = document.getElementById('startScreen');
+  var playerScreen = document.getElementById('playerScreen');
+  var fileInput = document.getElementById('fileInput');
+  var video = document.getElementById('video');
+  var frame = document.getElementById('frame');
+  var cam = document.getElementById('cam');
+  var camOff = document.getElementById('camOff');
+  var camStatus = document.getElementById('camStatus');
+  var camRetry = document.getElementById('camRetry');
+  var camSelect = document.getElementById('camSelect');
+  var mainWrap = document.getElementById('mainWrap');
+  var controls = document.getElementById('controls');
+  var seek = document.getElementById('seek');
+  var timeLabel = document.getElementById('timeLabel');
+  var playBtn = document.getElementById('playBtn');
+  var endedOverlay = document.getElementById('endedOverlay');
+  var urlRow = document.getElementById('urlRow');
+  var urlInput = document.getElementById('urlInput');
+  var urlHint = document.getElementById('urlHint');
+  var camStream = null;
+  var mode = 'video';        // 'video' | 'page'
+  var pageHomeUrl = '';      // ページモードで最初に開いたURL
+  var urlMode = 'web';       // URL入力欄の用途 'web' | 'yt'
+
+  // ---- 覚えておく設定 ----
+  function loadPref(key, fallback) {
+    try { var v = localStorage.getItem('shareStudio_' + key); return v === null ? fallback : v; }
+    catch (e) { return fallback; }
+  }
+  function savePref(key, value) {
+    try { localStorage.setItem('shareStudio_' + key, value); } catch (e) {}
+  }
+
+  var ratioInput = document.getElementById('ratio');
+  ratioInput.value = loadPref('ratio', '65');
+  function applyRatio() {
+    mainWrap.style.width = ratioInput.value + '%';
+    savePref('ratio', ratioInput.value);
+  }
+  ratioInput.addEventListener('input', applyRatio);
+  applyRatio();
+
+  var mirrorOn = loadPref('mirror', '1') === '1';
+  function applyMirror() {
+    cam.classList.toggle('mirror', mirrorOn);
+    savePref('mirror', mirrorOn ? '1' : '0');
+  }
+  document.getElementById('mirrorBtn').addEventListener('click', function () {
+    mirrorOn = !mirrorOn; applyMirror();
+  });
+  applyMirror();
+
+  // ---- カメラ ----
+  function cameraUnavailable() {
+    camOff.style.display = 'flex';
+    camStatus.textContent = 'カメラ: 使えません(許可されていないか、他のソフトが使用中)';
+    camStatus.className = 'ng';
+    camRetry.style.display = 'inline-block';
+  }
+
+  function startCamera(deviceId) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      cameraUnavailable();
+      return Promise.resolve();
+    }
+    if (camStream) {
+      camStream.getTracks().forEach(function (t) { t.stop(); });
+      camStream = null;
+    }
+    var constraints = { video: deviceId ? { deviceId: { exact: deviceId } } : true, audio: false };
+    return navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
+      camStream = stream;
+      cam.srcObject = stream;
+      camOff.style.display = 'none';
+      camStatus.textContent = 'カメラ: 使えます ✅';
+      camStatus.className = 'ok';
+      camRetry.style.display = 'none';
+      if (deviceId) savePref('cameraId', deviceId);
+      return listCameras();
+    }).catch(function (err) {
+      cameraUnavailable();
+    });
+  }
+
+  function listCameras() {
+    return navigator.mediaDevices.enumerateDevices().then(function (devices) {
+      var cams = devices.filter(function (d) { return d.kind === 'videoinput'; });
+      camSelect.innerHTML = '';
+      cams.forEach(function (d, i) {
+        var opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = d.label || ('カメラ ' + (i + 1));
+        camSelect.appendChild(opt);
+      });
+      if (camStream) {
+        var track = camStream.getVideoTracks()[0];
+        if (track) {
+          var currentId = track.getSettings().deviceId;
+          if (currentId) camSelect.value = currentId;
+        }
+      }
+    });
+  }
+
+  camSelect.addEventListener('change', function () { startCamera(camSelect.value); });
+  camRetry.addEventListener('click', function () { startCamera(loadPref('cameraId', null) || undefined); });
+
+  var savedCamId = loadPref('cameraId', null);
+  startCamera(savedCamId || undefined).then(function () {
+    if (!camStream && savedCamId) startCamera(undefined);
+  });
+
+  // ---- YouTubeのURLを埋め込み用に変換 ----
+  function toEmbedUrl(raw) {
+    var url;
+    try { url = new URL(raw); } catch (e) { return null; }
+    var host = url.hostname.replace(/^www\.|^m\./, '');
+    var id = '';
+    if (host === 'youtu.be') {
+      id = url.pathname.split('/')[1] || '';
+    } else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+      if (url.pathname === '/watch') id = url.searchParams.get('v') || '';
+      else {
+        var m = url.pathname.match(/^\/(shorts|live|embed)\/([^\/?]+)/);
+        if (m) id = m[2];
+      }
+    } else {
+      return null; // YouTubeではない
+    }
+    if (!id) return null;
+    var embed = 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0';
+    var list = url.searchParams.get('list');
+    if (list) embed += '&list=' + encodeURIComponent(list);
+    return embed;
+  }
+
+  // ---- 最近開いたページ ----
+  function loadRecents() {
+    try { return JSON.parse(loadPref('recents', '[]')); } catch (e) { return []; }
+  }
+  function addRecent(url, label) {
+    var recents = loadRecents().filter(function (r) { return r.url !== url; });
+    recents.unshift({ url: url, label: label });
+    if (recents.length > 6) recents = recents.slice(0, 6);
+    savePref('recents', JSON.stringify(recents));
+    renderRecents();
+  }
+  function renderRecents() {
+    var recents = loadRecents();
+    var wrap = document.getElementById('recentWrap');
+    var box = document.getElementById('recentBtns');
+    box.innerHTML = '';
+    if (!recents.length) { wrap.classList.remove('show'); return; }
+    wrap.classList.add('show');
+    recents.forEach(function (r) {
+      var b = document.createElement('button');
+      b.className = 'recentBtn';
+      b.textContent = r.label;
+      b.title = r.url;
+      b.addEventListener('click', function () { openPage(r.url, r.label); });
+      box.appendChild(b);
+    });
+  }
+  renderRecents();
+
+  // ---- 画面の切り替え ----
+  function enterStudio(newMode) {
+    mode = newMode;
+    controls.className = 'mode-' + newMode;
+    video.style.display = (newMode === 'video') ? 'block' : 'none';
+    frame.style.display = (newMode === 'page') ? 'block' : 'none';
+    startScreen.style.display = 'none';
+    playerScreen.style.display = 'block';
+    endedOverlay.style.display = 'none';
+    showControls();
+  }
+
+  function backToMenu() {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    frame.src = 'about:blank';
+    playerScreen.style.display = 'none';
+    startScreen.style.display = 'flex';
+    urlRow.classList.remove('show');
+    urlHint.classList.remove('show');
+    renderRecents();
+  }
+  document.getElementById('menuBtn').addEventListener('click', backToMenu);
+
+  // ---- 動画モード ----
+  document.getElementById('pickBtn').addEventListener('click', function () { fileInput.click(); });
+  fileInput.addEventListener('change', function () {
+    var file = fileInput.files[0];
+    if (!file) return;
+    video.src = URL.createObjectURL(file);
+    enterStudio('video');
+    video.play().catch(function () {});
+    fileInput.value = '';
+  });
+
+  // ---- ページモード ----
+  function openPage(rawUrl, label) {
+    var url = rawUrl.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    var embed = toEmbedUrl(url);
+    var finalUrl = embed || url;
+    var finalLabel = label;
+    if (!finalLabel) {
+      if (embed) {
+        finalLabel = '▶️ YouTubeの動画';
+      } else {
+        try {
+          var u = new URL(finalUrl);
+          finalLabel = '🌐 ' + u.hostname + (u.pathname !== '/' ? u.pathname : '');
+          if (finalLabel.length > 40) finalLabel = finalLabel.slice(0, 40) + '…';
+        } catch (e) { finalLabel = '🌐 ' + finalUrl.slice(0, 40); }
+      }
+    }
+    pageHomeUrl = finalUrl;
+    frame.src = finalUrl;
+    enterStudio('page');
+    if (finalUrl !== NOUTORE_URL) addRecent(rawUrl.trim(), finalLabel);
+  }
+
+  document.getElementById('noutoreBtn').addEventListener('click', function () {
+    openPage(NOUTORE_URL, '🧩 脳トレ素材集');
+  });
+
+  function showUrlRow(kind) {
+    urlMode = kind;
+    urlRow.classList.add('show');
+    urlHint.classList.toggle('show', kind === 'web');
+    urlInput.value = '';
+    urlInput.placeholder = (kind === 'yt')
+      ? 'YouTubeの動画のURLをここに貼り付け(例: https://www.youtube.com/watch?v=…)'
+      : 'ページのURLをここに入力(例: game.onlinedayservice.com)';
+    urlInput.focus();
+  }
+  document.getElementById('ytBtn').addEventListener('click', function () { showUrlRow('yt'); });
+  document.getElementById('webBtn').addEventListener('click', function () { showUrlRow('web'); });
+
+  function goUrl() {
+    var v = urlInput.value.trim();
+    if (!v) return;
+    if (urlMode === 'yt') {
+      var embed = toEmbedUrl(/^https?:\/\//i.test(v) ? v : 'https://' + v);
+      if (!embed) {
+        alert('YouTubeの動画のURLではないようです。\n動画ページのURL(youtube.com/watch?v=… や youtu.be/…)を貼り付けてください。');
+        return;
+      }
+    }
+    openPage(v);
+  }
+  document.getElementById('urlGo').addEventListener('click', goUrl);
+  urlInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') goUrl(); });
+
+  document.getElementById('pageBack').addEventListener('click', function () { history.back(); });
+  document.getElementById('pageHome').addEventListener('click', function () { frame.src = pageHomeUrl; });
+
+  // ---- 動画の再生コントロール ----
+  function togglePlay() {
+    if (video.paused) { video.play(); } else { video.pause(); }
+  }
+  playBtn.addEventListener('click', togglePlay);
+  video.addEventListener('click', togglePlay);
+  video.addEventListener('play', function () {
+    playBtn.textContent = '⏸ 一時停止';
+    endedOverlay.style.display = 'none';
+  });
+  video.addEventListener('pause', function () { playBtn.textContent = '▶ 再生'; });
+  video.addEventListener('ended', function () { endedOverlay.style.display = 'flex'; });
+  document.getElementById('replayBtn').addEventListener('click', function () {
+    video.currentTime = 0; video.play();
+  });
+  document.getElementById('back10').addEventListener('click', function () {
+    video.currentTime = Math.max(0, video.currentTime - 10);
+  });
+  document.getElementById('fwd10').addEventListener('click', function () {
+    video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
+  });
+
+  function fmt(sec) {
+    if (!isFinite(sec)) return '0:00';
+    sec = Math.floor(sec);
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  var seeking = false;
+  video.addEventListener('timeupdate', function () {
+    if (!seeking && video.duration) {
+      seek.value = Math.round(video.currentTime / video.duration * 1000);
+    }
+    timeLabel.textContent = fmt(video.currentTime) + ' / ' + fmt(video.duration);
+  });
+  seek.addEventListener('input', function () {
+    seeking = true;
+    if (video.duration) video.currentTime = seek.value / 1000 * video.duration;
+  });
+  seek.addEventListener('change', function () { seeking = false; });
+
+  var volumeInput = document.getElementById('volume');
+  volumeInput.value = loadPref('volume', '100');
+  video.volume = volumeInput.value / 100;
+  volumeInput.addEventListener('input', function () {
+    video.volume = volumeInput.value / 100;
+    savePref('volume', volumeInput.value);
+  });
+
+  // ---- 全画面 ----
+  document.getElementById('fsBtn').addEventListener('click', function () {
+    if (document.fullscreenElement) { document.exitFullscreen(); }
+    else { document.documentElement.requestFullscreen().catch(function () {}); }
+  });
+
+  // ---- 操作バーの自動かくれ ----
+  var hideTimer = null;
+  function showControls() {
+    controls.classList.remove('hidden');
+    document.body.style.cursor = '';
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(function () {
+      var busy = (mode === 'video') ? !video.paused : true;
+      if (busy) {
+        controls.classList.add('hidden');
+        if (mode === 'video') document.body.style.cursor = 'none';
+      }
+    }, 3000);
+  }
+  document.addEventListener('mousemove', showControls);
+  video.addEventListener('pause', showControls);
+
+  // ---- キーボード ----
+  document.addEventListener('keydown', function (e) {
+    if (playerScreen.style.display !== 'block') return;
+    if (mode !== 'video') return;
+    if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+    else if (e.key === 'f' || e.key === 'F') { document.getElementById('fsBtn').click(); }
+    else if (e.key === 'ArrowLeft') { document.getElementById('back10').click(); }
+    else if (e.key === 'ArrowRight') { document.getElementById('fwd10').click(); }
+  });
+})();
+</script>
+</body>
+</html>
