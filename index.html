@@ -140,7 +140,8 @@
   <div class="note">
     カメラの許可を聞かれたら「<b>許可する</b>」を押してください。<br>
     動画の音は、画面共有のとき「<b>音声も共有</b>」の設定で届けます。<br>
-    ※カメラが映らないときは、ビデオ通話ツール側のカメラを一度オフにしてから「カメラをもう一度ためす」を押してください。
+    ※カメラが映らないときは、ビデオ通話ツール側のカメラを一度オフにしてから「カメラをもう一度ためす」を押してください。<br>
+    ※マイクは使いません(声は今までどおりビデオ通話ツールのマイクで届くので、ハウリングの心配はありません)。
   </div>
   <input type="file" id="fileInput" accept="video/*,audio/*,image/*,application/pdf" style="display:none">
 </div>
@@ -177,6 +178,7 @@
       <span class="grow"></span>
       <span class="miniLabel">画面の割合</span>
       <input type="range" id="ratio" min="50" max="80" value="65">
+      <button class="cbtn" id="camBtn">📷 カメラ切</button>
       <button class="cbtn" id="mirrorBtn">🪞 鏡</button>
       <select id="camSelect" title="カメラを選ぶ"></select>
       <button class="cbtn" id="fsBtn">⛶ 全画面</button>
@@ -195,6 +197,7 @@
   var photo = document.getElementById('photo');
   var frame = document.getElementById('frame');
   var cam = document.getElementById('cam');
+  var camWrap = document.getElementById('camWrap');
   var camOff = document.getElementById('camOff');
   var camStatus = document.getElementById('camStatus');
   var camRetry = document.getElementById('camRetry');
@@ -206,6 +209,7 @@
   var playBtn = document.getElementById('playBtn');
   var endedOverlay = document.getElementById('endedOverlay');
   var camStream = null;
+  var camOn = true;          // 📷ボタンでのオン/オフ状態
   var mode = 'video';        // 'video' | 'page'
   var pageHomeUrl = '';      // ページモードで最初に開いたURL
 
@@ -221,7 +225,7 @@
   var ratioInput = document.getElementById('ratio');
   ratioInput.value = loadPref('ratio', '65');
   function applyRatio() {
-    mainWrap.style.width = ratioInput.value + '%';
+    mainWrap.style.width = camOn ? (ratioInput.value + '%') : '100%';
     savePref('ratio', ratioInput.value);
   }
   ratioInput.addEventListener('input', applyRatio);
@@ -289,8 +293,25 @@
     });
   }
 
-  camSelect.addEventListener('change', function () { startCamera(camSelect.value); });
-  camRetry.addEventListener('click', function () { startCamera(loadPref('cameraId', null) || undefined); });
+  // 📷 カメラのオン/オフ(オフ中はカメラ枠を消してコンテンツを全幅に)
+  var camBtn = document.getElementById('camBtn');
+  function setCameraOn(on, deviceId) {
+    camOn = on;
+    camWrap.style.display = on ? 'block' : 'none';
+    camBtn.textContent = on ? '📷 カメラ切' : '📷 カメラ入';
+    applyRatio();
+    if (on) {
+      startCamera(deviceId || loadPref('cameraId', null) || undefined);
+    } else if (camStream) {
+      camStream.getTracks().forEach(function (t) { t.stop(); });
+      camStream = null;
+      cam.srcObject = null;
+    }
+  }
+  camBtn.addEventListener('click', function () { setCameraOn(!camOn); });
+
+  camSelect.addEventListener('change', function () { setCameraOn(true, camSelect.value); });
+  camRetry.addEventListener('click', function () { setCameraOn(true); });
 
   var savedCamId = loadPref('cameraId', null);
   startCamera(savedCamId || undefined).then(function () {
