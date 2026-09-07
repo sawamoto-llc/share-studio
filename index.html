@@ -177,7 +177,7 @@
       <button class="cbtn pageOnly" id="pageHome">🔝 最初のページ</button>
       <span class="grow"></span>
       <span class="miniLabel">画面の割合</span>
-      <input type="range" id="ratio" min="50" max="80" value="65">
+      <input type="range" id="ratio" min="50" max="85" value="70">
       <button class="cbtn" id="camBtn">📷 カメラ切</button>
       <button class="cbtn" id="mirrorBtn">🪞 鏡</button>
       <select id="camSelect" title="カメラを選ぶ"></select>
@@ -223,7 +223,7 @@
   }
 
   var ratioInput = document.getElementById('ratio');
-  ratioInput.value = loadPref('ratio', '65');
+  ratioInput.value = loadPref('ratio', '70');
   function applyRatio() {
     mainWrap.style.width = camOn ? (ratioInput.value + '%') : '100%';
     savePref('ratio', ratioInput.value);
