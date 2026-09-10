@@ -75,6 +75,14 @@
   }
   #camWrap.dragging { box-shadow: 0 0 0 4px var(--accent-light), 0 4px 16px rgba(0,0,0,.55); }
   #camWrap video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  /* 右下のつまみ: ドラッグで大きさを変える */
+  #camResize {
+    position: absolute; right: 0; bottom: 0; width: 30px; height: 30px; z-index: 6;
+    cursor: nwse-resize; touch-action: none;
+    background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,.85) 50%);
+    border-bottom-right-radius: 8px;
+  }
+  #camResize:hover, #camWrap.resizing #camResize { background: linear-gradient(135deg, transparent 50%, var(--accent-light) 50%); }
   #camWrap video.mirror { transform: scaleX(-1); }
   #camOff {
     position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
@@ -165,6 +173,7 @@
     <div id="camWrap">
       <video id="cam" autoplay muted playsinline class="mirror"></video>
       <div id="camOff">カメラが使えません<br>(下の▼から選び直せます)</div>
+      <div id="camResize" title="ドラッグで大きさを変える"></div>
     </div>
   </div>
 
@@ -312,6 +321,36 @@
   }
   camWrap.addEventListener('pointerup', endDrag);
   camWrap.addEventListener('pointercancel', endDrag);
+
+  // 右下のつまみをドラッグして大きさを変える(縦横比はカメラの画角のまま・15〜50%)
+  var camResize = document.getElementById('camResize');
+  var resizing = false;
+  camResize.addEventListener('pointerdown', function (e) {
+    e.stopPropagation();               // 移動のドラッグと区別する
+    e.preventDefault();
+    resizing = true;
+    camResize.setPointerCapture(e.pointerId);
+    camWrap.classList.add('resizing');
+    frame.style.pointerEvents = 'none';
+  });
+  camResize.addEventListener('pointermove', function (e) {
+    if (!resizing) return;
+    var sr = stage.getBoundingClientRect();
+    var cr = camWrap.getBoundingClientRect();
+    var pct = (e.clientX - cr.left) / sr.width * 100;
+    pct = Math.max(+ratioInput.min, Math.min(+ratioInput.max, Math.round(pct)));
+    ratioInput.value = pct;
+    applyRatio();
+  });
+  function endResize() {
+    if (!resizing) return;
+    resizing = false;
+    camWrap.classList.remove('resizing');
+    frame.style.pointerEvents = '';
+    savePref('camPos', JSON.stringify(camPos));
+  }
+  camResize.addEventListener('pointerup', endResize);
+  camResize.addEventListener('pointercancel', endResize);
 
   var mirrorOn = loadPref('mirror', '1') === '1';
   function applyMirror() {
