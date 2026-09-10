@@ -61,17 +61,24 @@
 
   /* ===== スタジオ画面 ===== */
   #playerScreen { position: absolute; inset: 0; display: none; }
-  #stage { position: absolute; inset: 0; display: flex; background: #000; }
-  #mainWrap { position: relative; height: 100%; background: #000; }
+  #stage { position: absolute; inset: 0; background: #000; }
+  #mainWrap { position: absolute; inset: 0; background: #000; }
   #video { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
   #photo { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
   #frame { width: 100%; height: 100%; border: none; display: none; background: #fff; }
-  #camWrap { position: relative; flex: 1; height: 100%; background: #111; overflow: hidden; }
-  #camWrap video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* スタッフの顔=ワイプ(小窓)。カメラ本来の画角のまま、コンテンツの上に重ねる */
+  #camWrap {
+    position: absolute; z-index: 5; width: 25%; aspect-ratio: 16 / 9;
+    background: #111; overflow: hidden; border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.55); border: 2px solid rgba(255,255,255,.7);
+    cursor: move; touch-action: none; user-select: none;
+  }
+  #camWrap.dragging { box-shadow: 0 0 0 4px var(--accent-light), 0 4px 16px rgba(0,0,0,.55); }
+  #camWrap video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
   #camWrap video.mirror { transform: scaleX(-1); }
   #camOff {
     position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
-    color: #aaa; font-size: 19px; text-align: center; line-height: 1.8; padding: 10px;
+    color: #aaa; font-size: 15px; text-align: center; line-height: 1.6; padding: 8px;
   }
 
   #endedOverlay {
@@ -157,7 +164,7 @@
     </div>
     <div id="camWrap">
       <video id="cam" autoplay muted playsinline class="mirror"></video>
-      <div id="camOff">カメラが使えません<br>(下の「カメラ」から選び直せます)</div>
+      <div id="camOff">カメラが使えません<br>(下の▼から選び直せます)</div>
     </div>
   </div>
 
@@ -176,8 +183,9 @@
       <button class="cbtn pageOnly" id="pageBack">◀ 戻る</button>
       <button class="cbtn pageOnly" id="pageHome">🔝 最初のページ</button>
       <span class="grow"></span>
-      <span class="miniLabel">画面の割合</span>
-      <input type="range" id="ratio" min="50" max="85" value="70">
+      <span class="miniLabel">顔の大きさ</span>
+      <input type="range" id="ratio" min="15" max="50" value="25">
+      <button class="cbtn" id="posBtn" title="押すたびに四隅を順に移動。小窓を直接ドラッグしてもOK">📍 位置</button>
       <button class="cbtn" id="camBtn">📷 カメラ切</button>
       <button class="cbtn" id="mirrorBtn">🪞 鏡</button>
       <select id="camSelect" title="カメラを選ぶ"></select>
@@ -222,14 +230,88 @@
     try { localStorage.setItem('shareStudio_' + key, value); } catch (e) {}
   }
 
+  // ---- ワイプ(小窓)の大きさ ----
   var ratioInput = document.getElementById('ratio');
-  ratioInput.value = loadPref('ratio', '70');
+  ratioInput.value = loadPref('camSize', '25');
   function applyRatio() {
-    mainWrap.style.width = camOn ? (ratioInput.value + '%') : '100%';
-    savePref('ratio', ratioInput.value);
+    camWrap.style.width = ratioInput.value + '%';
+    savePref('camSize', ratioInput.value);
+    keepInside();
   }
   ratioInput.addEventListener('input', applyRatio);
+
+  // ---- ワイプの位置(画面に対する%で記憶。全画面にしてもずれない) ----
+  var stage = document.getElementById('stage');
+  var MARGIN = 2; // 端からの余白(%)
+  var camPos = { x: null, y: null }; // 左上の位置(%)。nullなら右下
+  try { camPos = JSON.parse(loadPref('camPos', '{"x":null,"y":null}')); } catch (e) {}
+
+  function placeCam() {
+    var sw = stage.clientWidth, sh = stage.clientHeight;
+    var cw = camWrap.offsetWidth, ch = camWrap.offsetHeight;
+    if (!sw || !sh) return;
+    var x = camPos.x, y = camPos.y;
+    if (x === null || y === null) {           // 初期位置=右下
+      x = 100 - MARGIN - cw / sw * 100;
+      y = 100 - MARGIN - ch / sh * 100;
+    }
+    // 画面の外にはみ出さないように
+    x = Math.max(0, Math.min(x, 100 - cw / sw * 100));
+    y = Math.max(0, Math.min(y, 100 - ch / sh * 100));
+    camWrap.style.left = x + '%';
+    camWrap.style.top = y + '%';
+  }
+  function keepInside() { requestAnimationFrame(placeCam); }
+  window.addEventListener('resize', keepInside);
+  cam.addEventListener('loadedmetadata', function () {
+    // カメラ本来の画角(4:3 / 16:9)にあわせる
+    if (cam.videoWidth && cam.videoHeight) camWrap.style.aspectRatio = cam.videoWidth + ' / ' + cam.videoHeight;
+    keepInside();
+  });
   applyRatio();
+
+  // 📍 位置ボタン: 右下 → 右上 → 左上 → 左下 の順に移動
+  var corners = ['rb', 'rt', 'lt', 'lb'];
+  var cornerIndex = 0;
+  function goCorner(name) {
+    var sw = stage.clientWidth, sh = stage.clientHeight;
+    var cwp = camWrap.offsetWidth / sw * 100, chp = camWrap.offsetHeight / sh * 100;
+    camPos.x = (name[0] === 'r') ? 100 - MARGIN - cwp : MARGIN;
+    camPos.y = (name[1] === 'b') ? 100 - MARGIN - chp : MARGIN;
+    savePref('camPos', JSON.stringify(camPos));
+    placeCam();
+  }
+  document.getElementById('posBtn').addEventListener('click', function () {
+    cornerIndex = (cornerIndex + 1) % corners.length;
+    goCorner(corners[cornerIndex]);
+  });
+
+  // 小窓をドラッグして好きな場所へ(動画や脳トレの邪魔にならない位置に置ける)
+  var drag = null;
+  camWrap.addEventListener('pointerdown', function (e) {
+    var r = camWrap.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    camWrap.setPointerCapture(e.pointerId);
+    camWrap.classList.add('dragging');
+    frame.style.pointerEvents = 'none';   // 下の窓にマウスを取られないように
+    e.preventDefault();
+  });
+  camWrap.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var sr = stage.getBoundingClientRect();
+    camPos.x = (e.clientX - drag.dx - sr.left) / sr.width * 100;
+    camPos.y = (e.clientY - drag.dy - sr.top) / sr.height * 100;
+    placeCam();
+  });
+  function endDrag() {
+    if (!drag) return;
+    drag = null;
+    camWrap.classList.remove('dragging');
+    frame.style.pointerEvents = '';
+    savePref('camPos', JSON.stringify(camPos));
+  }
+  camWrap.addEventListener('pointerup', endDrag);
+  camWrap.addEventListener('pointercancel', endDrag);
 
   var mirrorOn = loadPref('mirror', '1') === '1';
   function applyMirror() {
@@ -381,6 +463,7 @@
     startScreen.style.display = 'none';
     playerScreen.style.display = 'block';
     endedOverlay.style.display = 'none';
+    keepInside();
     showControls();
   }
 
