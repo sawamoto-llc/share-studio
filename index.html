@@ -107,26 +107,27 @@
   #controls {
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 60;
     background: rgba(20,20,20,.92); color: #eee;
-    padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 8px;
+    /* 寸法はすべて画面の高さ(vh)基準: ブラウザを拡大しても操作バーは画面上で同じ大きさのまま */
+    padding: 1vh 1.5vh 1.3vh; display: flex; flex-direction: column; gap: .8vh;
     transition: opacity .3s; opacity: 1;
   }
   #controls.hidden { opacity: 0; pointer-events: none; }
-  #seekRow { display: none; align-items: center; gap: 12px; }
-  #seek { flex: 1; height: 10px; cursor: pointer; accent-color: var(--accent-light); }
-  #timeLabel { font-size: 16px; min-width: 110px; text-align: right; font-variant-numeric: tabular-nums; }
-  #btnRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #seekRow { display: none; align-items: center; gap: 1.2vh; }
+  #seek { flex: 1; height: 1vh; cursor: pointer; accent-color: var(--accent-light); }
+  #timeLabel { font-size: 1.5vh; min-width: 10vh; text-align: right; font-variant-numeric: tabular-nums; }
+  #btnRow { display: flex; align-items: center; gap: 1vh; flex-wrap: wrap; }
   .cbtn {
-    font-size: 17px; padding: 10px 14px; border: none; border-radius: 10px;
+    font-size: 1.7vh; padding: 1vh 1.4vh; border: none; border-radius: 1vh;
     background: #3a3a3a; color: #fff; cursor: pointer; white-space: nowrap;
   }
   .cbtn:hover { background: #555; }
-  #playBtn { font-size: 22px; padding: 10px 30px; background: var(--accent); }
+  #playBtn { font-size: 2.1vh; padding: 1vh 3vh; background: var(--accent); }
   #playBtn:hover { background: var(--accent-light); }
   .grow { flex: 1; }
-  .miniLabel { font-size: 14px; color: #bbb; white-space: nowrap; }
-  #ratio { width: 120px; accent-color: var(--accent-light); }
-  #volume { width: 100px; accent-color: var(--accent-light); }
-  #camSelect { font-size: 15px; padding: 6px; border-radius: 8px; max-width: 200px; background:#3a3a3a; color:#fff; border:1px solid #555; }
+  .miniLabel { font-size: 1.4vh; color: #bbb; white-space: nowrap; }
+  #ratio { width: 12vh; accent-color: var(--accent-light); }
+  #volume { width: 10vh; accent-color: var(--accent-light); }
+  #camSelect { font-size: 1.5vh; padding: .6vh; border-radius: .8vh; max-width: 20vh; background:#3a3a3a; color:#fff; border:1px solid #555; }
   .videoOnly, .pageOnly { display: none; }
   #controls.mode-video .videoOnly { display: inline-block; }
   #controls.mode-video #seekRow { display: flex; }
