@@ -74,6 +74,21 @@
     box-shadow: 0 4px 16px rgba(0,0,0,.55); border: 2px solid rgba(255,255,255,.7);
     cursor: move; touch-action: none; user-select: none;
   }
+  /* 並べる方式の仕切りバー: 左右にドラッグして動画と小窓の割合を変える */
+  #divider {
+    position: absolute; top: 0; bottom: 0; z-index: 4; display: none;
+    cursor: col-resize; touch-action: none;
+  }
+  #divider::before {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px;
+    background: rgba(0,0,0,.12);
+  }
+  #divider::after {
+    content: ''; position: absolute; top: 50%; left: 50%; width: 1.4vh; height: 8vh; margin: -4vh 0 0 -.7vh;
+    border-radius: 1vh; background: #fff; border: 1px solid rgba(0,0,0,.2); box-shadow: 0 2px 6px rgba(0,0,0,.2);
+    background-image: radial-gradient(circle, #999 1px, transparent 1.5px); background-size: 100% 1.2vh; background-repeat: repeat-y;
+  }
+  #divider:hover::after, #divider.dragging::after { border-color: var(--accent-light); box-shadow: 0 0 0 3px var(--accent-light); }
   #camWrap.dragging { box-shadow: 0 0 0 4px var(--accent-light), 0 4px 16px rgba(0,0,0,.55); }
   #camWrap video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
   /* 右下のつまみ: ドラッグで大きさを変える */
@@ -176,6 +191,7 @@
       <iframe id="frame" allow="autoplay; encrypted-media; picture-in-picture; fullscreen"></iframe>
       <div id="endedOverlay"><button id="replayBtn">🔁 もう一度さいしょから</button></div>
     </div>
+    <div id="divider" title="左右にドラッグして動画と小窓の割合を変える"></div>
     <div id="camWrap">
       <video id="cam" autoplay muted playsinline class="mirror"></video>
       <canvas id="camCanvas" class="mirror"></canvas>
@@ -260,6 +276,7 @@
 
   // ---- ワイプの位置(画面に対する%で記憶。全画面にしてもずれない) ----
   var stage = document.getElementById('stage');
+  var divider = document.getElementById('divider');
   var MARGIN = 2; // 端からの余白(%)
   var camPos = { x: null, y: null }; // 左上の位置(%)。nullなら右下
   try { camPos = JSON.parse(loadPref('camPos', '{"x":null,"y":null}')); } catch (e) {}
@@ -276,6 +293,9 @@
       camWrap.style.aspectRatio = '4 / 3';
       var cwp = camWrap.offsetWidth / sw * 100, chp = camWrap.offsetHeight / sh * 100;
       mainWrap.style.right = (cwp + MARGIN * 2) + '%';
+      divider.style.display = 'block';
+      divider.style.left = (100 - cwp - MARGIN * 2) + '%';
+      divider.style.width = MARGIN + '%';
       var sy = (sideY === null) ? (100 - chp) / 2 : sideY;
       sy = Math.max(0, Math.min(sy, 100 - chp));
       camWrap.style.left = (100 - MARGIN - cwp) + '%';
@@ -285,6 +305,7 @@
     // ワイプ方式: 動画は全画面、小窓はカメラ本来の画角で好きな場所に重ねる
     camWrap.style.aspectRatio = camAspect;
     mainWrap.style.right = '0';
+    divider.style.display = 'none';
     var cw = camWrap.offsetWidth, ch = camWrap.offsetHeight;
     var x = camPos.x, y = camPos.y;
     if (x === null || y === null) {           // 初期位置=右下
@@ -369,6 +390,33 @@
   }
   camWrap.addEventListener('pointerup', endDrag);
   camWrap.addEventListener('pointercancel', endDrag);
+
+  // 仕切りバーを左右にドラッグ → 小窓の幅(=動画の幅)を変える。スライダーと連動
+  var divDrag = false;
+  divider.addEventListener('pointerdown', function (e) {
+    divDrag = true;
+    divider.setPointerCapture(e.pointerId);
+    divider.classList.add('dragging');
+    frame.style.pointerEvents = 'none';
+    e.preventDefault();
+  });
+  divider.addEventListener('pointermove', function (e) {
+    if (!divDrag) return;
+    var sr = stage.getBoundingClientRect();
+    var xPct = (e.clientX - sr.left) / sr.width * 100;   // 仕切りの位置(%)
+    var pct = 100 - xPct - MARGIN * 1.5;                   // → 小窓の幅(%)
+    pct = Math.max(+ratioInput.min, Math.min(+ratioInput.max, Math.round(pct)));
+    ratioInput.value = pct;
+    applyRatio();
+  });
+  function endDivDrag() {
+    if (!divDrag) return;
+    divDrag = false;
+    divider.classList.remove('dragging');
+    frame.style.pointerEvents = '';
+  }
+  divider.addEventListener('pointerup', endDivDrag);
+  divider.addEventListener('pointercancel', endDivDrag);
 
   // 右下のつまみをドラッグして大きさを変える(縦横比はカメラの画角のまま・15〜50%)
   var camResize = document.getElementById('camResize');
