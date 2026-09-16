@@ -7,6 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
 <style>
   :root {
+    --bg-soft: #efe9dd;   /* 空きスペースの色(淡いクリーム)。ここを変えれば全体が変わる */
     --accent: #2e7d32;
     --accent-light: #4caf50;
   }
@@ -61,10 +62,10 @@
 
   /* ===== スタジオ画面 ===== */
   #playerScreen { position: absolute; inset: 0; display: none; }
-  #stage { position: absolute; inset: 0; background: #000; }
-  #mainWrap { position: absolute; inset: 0; background: #000; }
-  #video { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
-  #photo { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
+  #stage { position: absolute; inset: 0; background: var(--bg-soft); }
+  #mainWrap { position: absolute; inset: 0; background: var(--bg-soft); }
+  #video { width: 100%; height: 100%; object-fit: contain; display: none; background: transparent; }
+  #photo { width: 100%; height: 100%; object-fit: contain; display: none; background: transparent; }
   #frame { width: 100%; height: 100%; border: none; display: none; background: #fff; }
   /* スタッフの顔=ワイプ(小窓)。カメラ本来の画角のまま、コンテンツの上に重ねる */
   #camWrap {
@@ -194,6 +195,7 @@
       <span class="grow"></span>
       <span class="miniLabel">顔の大きさ</span>
       <input type="range" id="ratio" min="15" max="50" value="25">
+      <button class="cbtn" id="layoutBtn" title="顔の小窓を「動画に重ねる」か「横に並べる」か切り替え">⬜ 並べる</button>
       <button class="cbtn" id="posBtn" title="押すたびに四隅を順に移動。小窓を直接ドラッグしてもOK">📍 位置</button>
       <button class="cbtn" id="camBtn">📷 カメラ切</button>
       <button class="cbtn" id="mirrorBtn">🪞 鏡</button>
@@ -254,11 +256,29 @@
   var MARGIN = 2; // 端からの余白(%)
   var camPos = { x: null, y: null }; // 左上の位置(%)。nullなら右下
   try { camPos = JSON.parse(loadPref('camPos', '{"x":null,"y":null}')); } catch (e) {}
+  var layout = loadPref('layout', 'wipe');      // 'wipe'=動画に重ねる / 'side'=横に並べる(重ならない)
+  var sideY = parseFloat(loadPref('sideY', ''));  // 並べる方式のときの小窓の上下位置(%)
+  if (isNaN(sideY)) sideY = null;
+  var camAspect = '16 / 9';                      // カメラ本来の画角(loadedmetadataで更新)
 
   function placeCam() {
     var sw = stage.clientWidth, sh = stage.clientHeight;
-    var cw = camWrap.offsetWidth, ch = camWrap.offsetHeight;
     if (!sw || !sh) return;
+    if (layout === 'side' && camOn) {
+      // 並べる方式: 小窓は右端に4:3で固定、動画はその左側に全部見える。上下だけ動かせる
+      camWrap.style.aspectRatio = '4 / 3';
+      var cwp = camWrap.offsetWidth / sw * 100, chp = camWrap.offsetHeight / sh * 100;
+      mainWrap.style.right = (cwp + MARGIN * 2) + '%';
+      var sy = (sideY === null) ? (100 - chp) / 2 : sideY;
+      sy = Math.max(0, Math.min(sy, 100 - chp));
+      camWrap.style.left = (100 - MARGIN - cwp) + '%';
+      camWrap.style.top = sy + '%';
+      return;
+    }
+    // ワイプ方式: 動画は全画面、小窓はカメラ本来の画角で好きな場所に重ねる
+    camWrap.style.aspectRatio = camAspect;
+    mainWrap.style.right = '0';
+    var cw = camWrap.offsetWidth, ch = camWrap.offsetHeight;
     var x = camPos.x, y = camPos.y;
     if (x === null || y === null) {           // 初期位置=右下
       x = 100 - MARGIN - cw / sw * 100;
@@ -274,7 +294,7 @@
   window.addEventListener('resize', keepInside);
   cam.addEventListener('loadedmetadata', function () {
     // カメラ本来の画角(4:3 / 16:9)にあわせる
-    if (cam.videoWidth && cam.videoHeight) camWrap.style.aspectRatio = cam.videoWidth + ' / ' + cam.videoHeight;
+    if (cam.videoWidth && cam.videoHeight) camAspect = cam.videoWidth + ' / ' + cam.videoHeight;
     keepInside();
   });
   applyRatio();
@@ -295,6 +315,22 @@
     goCorner(corners[cornerIndex]);
   });
 
+  // ⬜/🪟 表示方式の切り替え(前回の選択を記憶)
+  var layoutBtn = document.getElementById('layoutBtn');
+  var posBtn = document.getElementById('posBtn');
+  function applyLayoutUI() {
+    var side = (layout === 'side');
+    layoutBtn.textContent = side ? '🪟 重ねる' : '⬜ 並べる';
+    posBtn.style.display = side ? 'none' : '';   // 並べる方式では四隅移動は不要
+    savePref('layout', layout);
+    keepInside();
+  }
+  layoutBtn.addEventListener('click', function () {
+    layout = (layout === 'side') ? 'wipe' : 'side';
+    applyLayoutUI();
+  });
+  applyLayoutUI();
+
   // 小窓をドラッグして好きな場所へ(動画や脳トレの邪魔にならない位置に置ける)
   var drag = null;
   camWrap.addEventListener('pointerdown', function (e) {
@@ -308,8 +344,12 @@
   camWrap.addEventListener('pointermove', function (e) {
     if (!drag) return;
     var sr = stage.getBoundingClientRect();
-    camPos.x = (e.clientX - drag.dx - sr.left) / sr.width * 100;
-    camPos.y = (e.clientY - drag.dy - sr.top) / sr.height * 100;
+    if (layout === 'side') {
+      sideY = (e.clientY - drag.dy - sr.top) / sr.height * 100;
+    } else {
+      camPos.x = (e.clientX - drag.dx - sr.left) / sr.width * 100;
+      camPos.y = (e.clientY - drag.dy - sr.top) / sr.height * 100;
+    }
     placeCam();
   });
   function endDrag() {
@@ -318,6 +358,7 @@
     camWrap.classList.remove('dragging');
     frame.style.pointerEvents = '';
     savePref('camPos', JSON.stringify(camPos));
+    if (sideY !== null) savePref('sideY', sideY);
   }
   camWrap.addEventListener('pointerup', endDrag);
   camWrap.addEventListener('pointercancel', endDrag);
