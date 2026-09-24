@@ -65,6 +65,11 @@
   }
   #dropOverlay.show { display: flex; }
 
+  #dropHint {
+    width: min(580px, 92%); padding: 16px 20px; border: 3px dashed #b9b09a; border-radius: 16px;
+    color: #777; font-size: 18px; background: rgba(255,255,255,.4); line-height: 1.5;
+  }
+  #dropHint small { display: block; font-size: 14px; color: #999; margin-top: 4px; }
   #recentWrap { display: none; flex-direction: column; gap: 8px; align-items: center; }
   #recentWrap.show { display: flex; }
   #recentWrap .miniTitle { font-size: 14px; color: #999; }
@@ -188,6 +193,8 @@
     <button class="menuBtn alt" id="webBtn">🔍 インターネット<small>すぐに検索画面がひらく(URLでも開ける)</small></button>
     <button class="menuBtn alt" id="folderBtn">📁 自分のフォルダ<small>登録したフォルダの中から選ぶ</small></button>
   </div>
+
+  <div id="dropHint">⬇ ここにファイルをドロップ<small>エクスプローラーから動画・PDF・写真をドラッグして、この画面に落とすと開きます</small></div>
 
   <div id="folderPanel">
     <div id="folderHead">
@@ -656,9 +663,15 @@
     endedOverlay.style.display = 'none';
     keepInside();
     showControls();
+    // ブラウザの「←戻る」を押したときスタジオから出てしまわず、メニューに戻れるように履歴に印を残す
+    if (!(history.state && history.state.studio)) history.pushState({ studio: true }, '');
   }
+  window.addEventListener('popstate', function (e) {
+    if (playerScreen.style.display === 'block' && !(e.state && e.state.studio)) backToMenu(true);
+  });
 
-  function backToMenu() {
+  function backToMenu(fromHistory) {
+    if (!fromHistory && history.state && history.state.studio) history.replaceState({ studio: false }, '');
     video.pause();
     video.removeAttribute('src');
     video.load();
@@ -787,6 +800,7 @@
     folderPanel.classList.toggle('show', on);
     menuGrid.style.display = on ? 'none' : '';
     recentWrap.style.display = on ? 'none' : '';
+    document.getElementById('dropHint').style.display = on ? 'none' : '';
   }
   function ensurePermission(handle) {
     return handle.queryPermission({ mode: 'read' }).then(function (p) {
