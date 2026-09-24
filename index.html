@@ -651,12 +651,20 @@
   }
   renderRecents();
 
-  // 窓(iframe)にページを読み込む。frame.src= だと履歴に1件積まれ、←で窓が空白に戻ってしまうため、
-  // 履歴に残さない location.replace で読み込む(相対URLは必ず絶対URLに直す)
+  // 窓(iframe)は毎回作り直してから読み込む。
+  // 既存の窓に読み込む/空に戻すと、その操作がブラウザの履歴に1件積まれ、←を押したとき窓が空白に戻ってしまう。
+  // 新品の窓の最初の読み込みは履歴に積まれない(実測で確認)ため、開くたびに新しい窓に差し替える。
+  function resetFrame() {
+    var n = document.createElement('iframe');
+    n.id = 'frame';
+    n.setAttribute('allow', frame.getAttribute('allow') || '');
+    n.style.display = 'none';
+    frame.parentNode.replaceChild(n, frame);
+    frame = n;
+  }
   function loadFrame(url) {
-    var abs = new URL(url, location.href).href;
-    try { frame.contentWindow.location.replace(abs); }
-    catch (e) { frame.src = abs; }
+    resetFrame();
+    frame.src = new URL(url, location.href).href;
   }
 
   // ---- 画面の切り替え ----
@@ -684,12 +692,12 @@
     video.removeAttribute('src');
     video.load();
     photo.removeAttribute('src');
-    loadFrame('about:blank');
+    resetFrame();   // 窓の中身を捨てる(音が鳴り続けるのも止まる)
     playerScreen.style.display = 'none';
     startScreen.style.display = 'flex';
     renderRecents();
   }
-  document.getElementById('menuBtn').addEventListener('click', backToMenu);
+  document.getElementById('menuBtn').addEventListener('click', function () { backToMenu(false); });
 
   // ---- ファイルモード(動画・音声・写真・PDF) ----
   var VIDEO_EXT = /^(mp4|m4v|mov|webm|mkv|avi|wmv|mpg|mpeg|mts|m2ts|3gp|ogv)$/;
