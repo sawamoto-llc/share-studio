@@ -651,6 +651,14 @@
   }
   renderRecents();
 
+  // 窓(iframe)にページを読み込む。frame.src= だと履歴に1件積まれ、←で窓が空白に戻ってしまうため、
+  // 履歴に残さない location.replace で読み込む(相対URLは必ず絶対URLに直す)
+  function loadFrame(url) {
+    var abs = new URL(url, location.href).href;
+    try { frame.contentWindow.location.replace(abs); }
+    catch (e) { frame.src = abs; }
+  }
+
   // ---- 画面の切り替え ----
   function enterStudio(newMode) {
     mode = newMode;
@@ -676,7 +684,7 @@
     video.removeAttribute('src');
     video.load();
     photo.removeAttribute('src');
-    frame.src = 'about:blank';
+    loadFrame('about:blank');
     playerScreen.style.display = 'none';
     startScreen.style.display = 'flex';
     renderRecents();
@@ -709,7 +717,7 @@
       photo.src = url;
       enterStudio('image');
     } else if (kind === 'pdf') {
-      frame.src = url;
+      loadFrame(url);
       enterStudio('pdf');
     } else {
       alert('このファイルの形式は開けません。\n動画(MP4など)・PDF・写真(JPG/PNG)・音声(MP3)が使えます。\nWordやExcel、PowerPointの資料は「PDFで保存」してから開いてください。');
@@ -926,7 +934,7 @@
       }
     }
     pageHomeUrl = finalUrl;
-    frame.src = finalUrl;
+    loadFrame(finalUrl);
     enterStudio('page');
     if (finalUrl !== NOUTORE_URL) addRecent(rawUrl.trim(), finalLabel);
   }
@@ -939,7 +947,7 @@
   // 検索画面は毎回サーバーから取り直す(?t=…)。古い版がキャッシュで残り続けるのを防ぐ
   document.getElementById('webBtn').addEventListener('click', function () {
     pageHomeUrl = 'search.html?t=' + Date.now();
-    frame.src = pageHomeUrl;
+    loadFrame(pageHomeUrl);
     enterStudio('page');
   });
 
