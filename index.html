@@ -683,7 +683,10 @@
     if (!(history.state && history.state.studio)) history.pushState({ studio: true }, '');
   }
   window.addEventListener('popstate', function (e) {
-    if (playerScreen.style.display === 'block' && !(e.state && e.state.studio)) backToMenu(true);
+    var st = e.state || {};
+    // 印のない場所まで戻ったら、開いているものを順に閉じる: スタジオ → フォルダ画面 → トップメニュー
+    if (playerScreen.style.display === 'block' && !st.studio) backToMenu(true);
+    if (folderPanel.classList.contains('show') && !st.folder && !st.studio) showFolderPanel(false, true);
   });
 
   function backToMenu(fromHistory) {
@@ -812,11 +815,14 @@
   }
   function saveRoots() { return dbSet('roots', roots).catch(function () {}); }
 
-  function showFolderPanel(on) {
+  function showFolderPanel(on, fromHistory) {
     folderPanel.classList.toggle('show', on);
     menuGrid.style.display = on ? 'none' : '';
     recentWrap.style.display = on ? 'none' : '';
     document.getElementById('dropHint').style.display = on ? 'none' : '';
+    if (fromHistory) return;
+    if (on && !(history.state && history.state.folder)) history.pushState({ folder: true }, '');
+    if (!on && history.state && history.state.folder) history.replaceState({ folder: false }, '');
   }
   function ensurePermission(handle) {
     return handle.queryPermission({ mode: 'read' }).then(function (p) {
