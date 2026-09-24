@@ -179,7 +179,7 @@
     ※カメラが映らないときは、ビデオ通話ツール側のカメラを一度オフにしてから「カメラをもう一度ためす」を押してください。<br>
     ※マイクは使いません(声は今までどおりビデオ通話ツールのマイクで届くので、ハウリングの心配はありません)。
   </div>
-  <input type="file" id="fileInput" accept="video/*,audio/*,image/*,application/pdf" style="display:none">
+  <input type="file" id="fileInput" style="display:none">
 </div>
 
 <!-- スタジオ画面 -->
@@ -640,15 +640,20 @@
     if (!file) return;
     var name = (file.name || '').toLowerCase();
     var type = file.type || '';
+    var ext = (name.match(/\.([a-z0-9]+)$/) || [null, ''])[1];
     var url = URL.createObjectURL(file);
-    if (type.indexOf('video/') === 0 || type.indexOf('audio/') === 0) {
+    // 選択画面は「すべてのファイル」を出すので、種類はMIMEに加えて拡張子でも判定する
+    var VIDEO = /^(mp4|m4v|mov|webm|mkv|avi|wmv|mpg|mpeg|mts|m2ts|3gp|ogv)$/;
+    var AUDIO = /^(mp3|m4a|wav|aac|ogg|oga|flac|wma)$/;
+    var IMAGE = /^(jpg|jpeg|png|gif|webp|bmp|heic|heif|svg|avif)$/;
+    if (type.indexOf('video/') === 0 || type.indexOf('audio/') === 0 || VIDEO.test(ext) || AUDIO.test(ext)) {
       video.src = url;
       enterStudio('video');
       video.play().catch(function () {});
-    } else if (type.indexOf('image/') === 0) {
+    } else if (type.indexOf('image/') === 0 || IMAGE.test(ext)) {
       photo.src = url;
       enterStudio('image');
-    } else if (type === 'application/pdf' || /\.pdf$/.test(name)) {
+    } else if (type === 'application/pdf' || ext === 'pdf') {
       frame.src = url;
       enterStudio('pdf');
     } else {
@@ -712,6 +717,11 @@
   });
   video.addEventListener('pause', function () { playBtn.textContent = '▶ 再生'; });
   video.addEventListener('ended', function () { endedOverlay.style.display = 'flex'; });
+  video.addEventListener('error', function () {
+    if (!video.currentSrc) return;
+    alert('この動画はブラウザで再生できない形式のようです(WMV・AVIなど)。\nMP4形式に変換したものを使ってください。');
+    backToMenu();
+  });
   document.getElementById('replayBtn').addEventListener('click', function () {
     video.currentTime = 0; video.play();
   });
