@@ -859,7 +859,7 @@
       var dup = roots.some(function (r) { return r.name === h.name; });
       if (!dup) roots.push(h);
       return saveRoots().then(function () { enterDir(h, [h]); });
-    }).catch(function () { /* キャンセル */ });
+    }).catch(function () { if (!roots.length) renderRoots(); /* キャンセル時は案内文を表示 */ });
   }
 
   document.getElementById('folderBtn').addEventListener('click', function () {
