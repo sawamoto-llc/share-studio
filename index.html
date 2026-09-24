@@ -536,28 +536,46 @@
     if (!camStream && savedCamId) startCamera(undefined);
   });
 
-  // ---- 動画ページのURLは公式の埋め込みプレイヤー表示に変換(全画面できれいに映すため) ----
+
+  // 動画・地図のページは、公式の「埋め込み用」表示に変換する(そのままでは窓の中に表示できないため)
   function toEmbedUrl(raw) {
     var url;
     try { url = new URL(raw); } catch (e) { return null; }
     var host = url.hostname.replace(/^www\.|^m\./, '');
-    var id = '';
-    if (host === 'youtu.be') {
-      id = url.pathname.split('/')[1] || '';
-    } else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
-      if (url.pathname === '/watch') id = url.searchParams.get('v') || '';
-      else {
-        var m = url.pathname.match(/^\/(shorts|live|embed)\/([^\/?]+)/);
-        if (m) id = m[2];
-      }
-    } else {
-      return null; // YouTubeではない
+    // --- 動画ページ ---
+    if (host === 'youtu.be' || host === 'youtube.com' || host === 'youtube-nocookie.com') {
+      var id = '';
+      if (host === 'youtu.be') id = url.pathname.split('/')[1] || '';
+      else if (url.pathname === '/watch') id = url.searchParams.get('v') || '';
+      else { var m = url.pathname.match(/^\/(shorts|live|embed)\/([^\/?]+)/); if (m) id = m[2]; }
+      if (!id) return null;
+      var e = 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0';
+      var list = url.searchParams.get('list');
+      if (list) e += '&list=' + encodeURIComponent(list);
+      return e;
     }
-    if (!id) return null;
-    var embed = 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0';
-    var list = url.searchParams.get('list');
-    if (list) embed += '&list=' + encodeURIComponent(list);
-    return embed;
+    // --- Googleマップ ---
+    if (/(^|\.)google\.[a-z.]+$/.test(host) && url.pathname.indexOf('/maps') === 0) {
+      var q = url.searchParams.get('q') || url.searchParams.get('query') || '';
+      var pm = url.pathname.match(/\/maps\/(?:place|search)\/([^\/]+)/);
+      if (!q && pm) q = decodeURIComponent(pm[1].replace(/\+/g, ' '));
+      var dm = url.pathname.match(/\/maps\/dir\/[^\/]*\/([^\/]+)/);
+      if (!q && dm) q = decodeURIComponent(dm[1].replace(/\+/g, ' '));
+      var at = url.pathname.match(/@(-?[\d.]+),(-?[\d.]+)(?:,([\d.]+)z)?/);
+      if (!q && at) q = at[1] + ',' + at[2];
+      if (!q) return null;
+      var me = 'https://maps.google.com/maps?q=' + encodeURIComponent(q) + '&hl=ja&output=embed';
+      if (at && at[3]) me += '&z=' + Math.round(parseFloat(at[3]));
+      return me;
+    }
+    if (host === 'maps.app.goo.gl' || host === 'goo.gl') {
+      alert('地図の短縮リンク(maps.app.goo.gl)は窓の中で開けません。\n上の欄に地名を入れて「🗺 地図で見る」を押してください。');
+      return 'about:blank';
+    }
+    return null;
+  }
+  function mapEmbedUrl(place) {
+    return 'https://maps.google.com/maps?q=' + encodeURIComponent(place) + '&hl=ja&output=embed';
   }
 
   // ---- 最近開いたページ ----
@@ -645,10 +663,13 @@
     if (!url) return;
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
     var embed = toEmbedUrl(url);
+    if (embed === 'about:blank') return;
     var finalUrl = embed || url;
     var finalLabel = label;
     if (!finalLabel) {
-      if (embed) {
+      if (embed && embed.indexOf('maps.google.com') >= 0) {
+        finalLabel = '🗺 地図';
+      } else if (embed) {
         finalLabel = '▶️ 動画のページ';
       } else {
         try {

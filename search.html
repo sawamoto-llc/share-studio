@@ -24,6 +24,8 @@
     background: #2e7d32; color: #fff; cursor: pointer; white-space: nowrap;
   }
   form.search button:hover { background: #4caf50; }
+  form.search button.alt { background: #5c6bc0; }
+  form.search button.alt:hover { background: #7986cb; }
   .urlRow { display: flex; gap: 8px; width: min(560px, 94%); }
   .urlRow input {
     flex: 1; font-size: 16px; padding: 10px 12px; border-radius: 10px; border: 1px solid #bbb;
@@ -42,6 +44,7 @@
   <form class="search" action="https://www.bing.com/search" method="get">
     <input type="text" name="q" placeholder="調べたい言葉を入力" autofocus autocomplete="off">
     <button type="submit">検索</button>
+    <button type="button" id="mapBtn" class="alt" title="入力した地名をGoogleマップで表示">🗺 地図で見る</button>
   </form>
 
   <div class="miniTitle">ホームページのURLが分かっているとき</div>
@@ -63,12 +66,61 @@
   </div>
 
 <script>
+
+  // 動画・地図のページは、公式の「埋め込み用」表示に変換する(そのままでは窓の中に表示できないため)
+  function toEmbedUrl(raw) {
+    var url;
+    try { url = new URL(raw); } catch (e) { return null; }
+    var host = url.hostname.replace(/^www\.|^m\./, '');
+    // --- 動画ページ ---
+    if (host === 'youtu.be' || host === 'youtube.com' || host === 'youtube-nocookie.com') {
+      var id = '';
+      if (host === 'youtu.be') id = url.pathname.split('/')[1] || '';
+      else if (url.pathname === '/watch') id = url.searchParams.get('v') || '';
+      else { var m = url.pathname.match(/^\/(shorts|live|embed)\/([^\/?]+)/); if (m) id = m[2]; }
+      if (!id) return null;
+      var e = 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0';
+      var list = url.searchParams.get('list');
+      if (list) e += '&list=' + encodeURIComponent(list);
+      return e;
+    }
+    // --- Googleマップ ---
+    if (/(^|\.)google\.[a-z.]+$/.test(host) && url.pathname.indexOf('/maps') === 0) {
+      var q = url.searchParams.get('q') || url.searchParams.get('query') || '';
+      var pm = url.pathname.match(/\/maps\/(?:place|search)\/([^\/]+)/);
+      if (!q && pm) q = decodeURIComponent(pm[1].replace(/\+/g, ' '));
+      var dm = url.pathname.match(/\/maps\/dir\/[^\/]*\/([^\/]+)/);
+      if (!q && dm) q = decodeURIComponent(dm[1].replace(/\+/g, ' '));
+      var at = url.pathname.match(/@(-?[\d.]+),(-?[\d.]+)(?:,([\d.]+)z)?/);
+      if (!q && at) q = at[1] + ',' + at[2];
+      if (!q) return null;
+      var me = 'https://maps.google.com/maps?q=' + encodeURIComponent(q) + '&hl=ja&output=embed';
+      if (at && at[3]) me += '&z=' + Math.round(parseFloat(at[3]));
+      return me;
+    }
+    if (host === 'maps.app.goo.gl' || host === 'goo.gl') {
+      alert('地図の短縮リンク(maps.app.goo.gl)は窓の中で開けません。\n上の欄に地名を入れて「🗺 地図で見る」を押してください。');
+      return 'about:blank';
+    }
+    return null;
+  }
+  function mapEmbedUrl(place) {
+    return 'https://maps.google.com/maps?q=' + encodeURIComponent(place) + '&hl=ja&output=embed';
+  }
+
   function openUrl() {
     var v = document.getElementById('urlInput').value.trim();
     if (!v) return;
     if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
-    location.href = v;
+    var embed = toEmbedUrl(v);
+    if (embed === 'about:blank') return;
+    location.href = embed || v;
   }
+  document.getElementById('mapBtn').addEventListener('click', function () {
+    var place = document.querySelector('input[name=q]').value.trim();
+    if (!place) { alert('上の欄に地名(例: 本山町、高知城)を入れてから押してください。'); return; }
+    location.href = mapEmbedUrl(place);
+  });
   document.getElementById('urlGo').addEventListener('click', openUrl);
   document.getElementById('urlInput').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') openUrl();
