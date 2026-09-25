@@ -1073,12 +1073,10 @@
     controls.classList.remove('hidden');
     document.body.style.cursor = '';
     clearTimeout(hideTimer);
+    // 何を開いていても・動画を止めていても、マウスを動かさなければ3秒で消える(常に同じ動き)
     hideTimer = setTimeout(function () {
-      var busy = (mode === 'video') ? !video.paused : true;
-      if (busy) {
-        controls.classList.add('hidden');
-        if (mode === 'video') document.body.style.cursor = 'none';
-      }
+      controls.classList.add('hidden');
+      if (mode === 'video' && !video.paused) document.body.style.cursor = 'none';
     }, 3000);
   }
   document.addEventListener('mousemove', showControls);
