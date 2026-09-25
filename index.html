@@ -170,7 +170,17 @@
   .grow { flex: 1; }
   .miniLabel { font-size: 1.4vh; color: #bbb; white-space: nowrap; }
   #ratio { width: 12vh; accent-color: var(--accent-light); }
-  #volume { width: 10vh; accent-color: var(--accent-light); }
+  /* 音量スライダー: 0〜100%は緑、100〜150%(右側1/3)はオレンジ=増幅ゾーン(VLC風) */
+  #volume {
+    width: 12vh; height: .9vh; -webkit-appearance: none; appearance: none; border-radius: 1vh; outline: none; cursor: pointer;
+    background: linear-gradient(to right, var(--accent-light) 0 66.67%, #f0a040 66.67% 100%);
+  }
+  #volume::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 2vh; height: 2vh; border-radius: 50%; background: #fff;
+    border: .3vh solid var(--accent-light); box-shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  #volume.boost::-webkit-slider-thumb { border-color: #f0a040; }
+  #volumeLabel.boost { color: #f8b860; font-weight: bold; }
   #camSelect { font-size: 1.5vh; padding: .6vh; border-radius: .8vh; max-width: 20vh; background:#3a3a3a; color:#fff; border:1px solid #555; }
   .videoOnly, .pageOnly { display: none; }
   #controls.mode-video .videoOnly { display: inline-block; }
@@ -257,7 +267,7 @@
       <button class="cbtn videoOnly" id="back10">⏪ 10秒</button>
       <button class="cbtn videoOnly" id="fwd10">10秒 ⏩</button>
       <span class="miniLabel videoOnly" id="volumeLabel">音量 100%</span>
-      <input type="range" id="volume" min="0" max="200" value="100" class="videoOnly" title="100%を超えると増幅(音の小さい動画用)">
+      <input type="range" id="volume" min="0" max="150" value="100" class="videoOnly" title="100%を超えると増幅(音の小さい動画用)">
       <button class="cbtn pageOnly" id="pageBack">◀ 戻る</button>
       <button class="cbtn pageOnly" id="pageHome">🔝 最初のページ</button>
       <span class="grow"></span>
@@ -1033,6 +1043,8 @@
   function applyVolume() {
     var v = +volumeInput.value;
     volumeLabel.textContent = '音量 ' + v + '%';
+    volumeInput.classList.toggle('boost', v > 100);
+    volumeLabel.classList.toggle('boost', v > 100);
     if (v <= 100 && !gainNode) {
       video.volume = v / 100;
     } else if (ensureGain()) {
@@ -1044,7 +1056,7 @@
     }
     savePref('volume', String(v));
   }
-  volumeInput.value = Math.min(200, Math.max(0, parseInt(loadPref('volume', '100'), 10) || 100));
+  volumeInput.value = Math.min(150, Math.max(0, parseInt(loadPref('volume', '100'), 10) || 100));
   applyVolume();
   volumeInput.addEventListener('input', applyVolume);
   video.addEventListener('play', function () { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); });
