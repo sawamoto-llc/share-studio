@@ -547,23 +547,35 @@
     });
   }
 
+  // 一覧から外すカメラ: 顔認証用の赤外線カメラ(IR/Infrared)や、他ソフトの仮想カメラ(Virtual等)。
+  // 選ぶと真っ暗になり「カメラが使えない」と誤解される元なので、最初から見せない
+  var BAD_CAMERA = /\bIR\b|infrared|virtual|obs|snap camera|broadcast|xsplit|manycam|droidcam|iriun|camo/i;
+  function isBadCamera(label) { return BAD_CAMERA.test(label || ''); }
+
   function listCameras() {
     return navigator.mediaDevices.enumerateDevices().then(function (devices) {
-      var cams = devices.filter(function (d) { return d.kind === 'videoinput'; });
+      var all = devices.filter(function (d) { return d.kind === 'videoinput'; });
+      var good = all.filter(function (d) { return !isBadCamera(d.label); });
+      if (!good.length) good = all;   // 全部除外されてしまう場合は仕方なく全部出す
       camSelect.innerHTML = '';
-      cams.forEach(function (d, i) {
+      good.forEach(function (d, i) {
         var opt = document.createElement('option');
         opt.value = d.deviceId;
         opt.textContent = d.label || ('カメラ ' + (i + 1));
         camSelect.appendChild(opt);
       });
-      if (camStream) {
-        var track = camStream.getVideoTracks()[0];
-        if (track) {
-          var currentId = track.getSettings().deviceId;
-          if (currentId) camSelect.value = currentId;
-        }
+      if (!camStream) return;
+      var track = camStream.getVideoTracks()[0];
+      if (!track) return;
+      var currentId = track.getSettings().deviceId;
+      var currentLabel = track.label || '';
+      // いま使っているカメラが「外すべきカメラ」なら、まともなカメラに自動で切り替える
+      if (isBadCamera(currentLabel) && good.length && good[0].deviceId !== currentId && !isBadCamera(good[0].label)) {
+        return startCamera(good[0].deviceId);
       }
+      if (currentId) camSelect.value = currentId;
+      // メニュー画面に、いま使っているカメラの名前を出す(聞き取りのときに一発で分かるように)
+      camStatus.textContent = 'カメラ: 使えます ✅' + (currentLabel ? '(' + currentLabel + ')' : '');
     });
   }
 
