@@ -272,7 +272,7 @@
       <button class="cbtn pageOnly" id="pageHome">🔝 最初のページ</button>
       <span class="grow"></span>
       <span class="miniLabel">顔の大きさ</span>
-      <input type="range" id="ratio" min="15" max="50" value="25">
+      <input type="range" id="ratio" min="25" max="50" value="25">
       <button class="cbtn" id="layoutBtn" title="顔の小窓を「動画に重ねる」か「横に並べる」か切り替え">⬜ 並べる</button>
       <button class="cbtn" id="posBtn" title="押すたびに四隅を順に移動。小窓を直接ドラッグしてもOK">📍 位置</button>
       <button class="cbtn" id="camBtn">📷 カメラ切</button>
@@ -322,7 +322,7 @@
 
   // ---- ワイプ(小窓)の大きさ ----
   var ratioInput = document.getElementById('ratio');
-  ratioInput.value = loadPref('camSize', '25');
+  ratioInput.value = Math.max(25, Math.min(50, parseInt(loadPref('camSize', '25'), 10) || 25));
   function applyRatio() {
     camWrap.style.width = ratioInput.value + '%';
     savePref('camSize', ratioInput.value);
