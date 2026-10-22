@@ -96,11 +96,12 @@
   #video { width: 100%; height: 100%; object-fit: contain; display: none; background: transparent; }
   #photo { width: 100%; height: 100%; object-fit: contain; display: none; background: transparent; }
   #frame { width: 100%; height: 100%; border: none; display: none; background: #fff; }
-  /* スタッフの顔=ワイプ(小窓)。カメラ本来の画角のまま、コンテンツの上に重ねる */
+  /* スタッフの顔=ワイプ(小窓)。テレビ番組のワイプのような白い縁取りの丸窓で、コンテンツの上に重ねる */
   #camWrap {
-    position: absolute; z-index: 5; width: 25%; aspect-ratio: 16 / 9;
-    background: #111; overflow: hidden; border-radius: 10px;
-    box-shadow: 0 4px 16px rgba(0,0,0,.55); border: 2px solid rgba(255,255,255,.7);
+    position: absolute; z-index: 5; width: 25%; aspect-ratio: 1 / 1;
+    background: #111; overflow: hidden; border-radius: 50%;
+    border: .7vh solid #fff; box-sizing: border-box;
+    box-shadow: 0 0 0 .2vh rgba(0,0,0,.15), 0 .6vh 2vh rgba(0,0,0,.45);
     cursor: move; touch-action: none; user-select: none;
   }
   /* 並べる方式の仕切りバー: 左右にドラッグして動画と小窓の割合を変える */
@@ -118,16 +119,16 @@
     background-image: radial-gradient(circle, #999 1px, transparent 1.5px); background-size: 100% 1.2vh; background-repeat: repeat-y;
   }
   #divider:hover::after, #divider.dragging::after { border-color: var(--accent-light); box-shadow: 0 0 0 3px var(--accent-light); }
-  #camWrap.dragging { box-shadow: 0 0 0 4px var(--accent-light), 0 4px 16px rgba(0,0,0,.55); }
+  #camWrap.dragging { box-shadow: 0 0 0 .5vh var(--accent-light), 0 .6vh 2vh rgba(0,0,0,.45); }
   #camWrap video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
-  /* 右下のつまみ: ドラッグで大きさを変える */
+  /* 右下のつまみ: ドラッグで大きさを変える(丸窓のふちの右下=斜め45度の位置に置く) */
   #camResize {
-    position: absolute; right: 0; bottom: 0; width: 30px; height: 30px; z-index: 6;
-    cursor: nwse-resize; touch-action: none;
-    background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,.85) 50%);
-    border-bottom-right-radius: 8px;
+    position: absolute; right: 14%; bottom: 14%; width: 3vh; height: 3vh; z-index: 6;
+    cursor: nwse-resize; touch-action: none; border-radius: 50%;
+    background: rgba(255,255,255,.85); box-shadow: 0 1px 4px rgba(0,0,0,.4);
+    color: #555; font-size: 2vh; line-height: 3vh; text-align: center;
   }
-  #camResize:hover, #camWrap.resizing #camResize { background: linear-gradient(135deg, transparent 50%, var(--accent-light) 50%); }
+  #camResize:hover, #camWrap.resizing #camResize { background: var(--accent-light); color: #fff; }
   #camWrap video.mirror { transform: scaleX(-1); }
   #camWrap canvas { width: 100%; height: 100%; object-fit: cover; display: none; pointer-events: none; }
   #camWrap canvas.mirror { transform: scaleX(-1); }
@@ -252,7 +253,7 @@
       <video id="cam" autoplay muted playsinline class="mirror"></video>
       <canvas id="camCanvas" class="mirror"></canvas>
       <div id="camOff">カメラが使えません<br>(下の▼から選び直せます)</div>
-      <div id="camResize" title="ドラッグで大きさを変える"></div>
+      <div id="camResize" title="ドラッグで大きさを変える">⤡</div>
     </div>
   </div>
 
@@ -339,14 +340,12 @@
   var layout = loadPref('layout', 'wipe');      // 'wipe'=動画に重ねる / 'side'=横に並べる(重ならない)
   var sideY = parseFloat(loadPref('sideY', ''));  // 並べる方式のときの小窓の上下位置(%)
   if (isNaN(sideY)) sideY = null;
-  var camAspect = '16 / 9';                      // カメラ本来の画角(loadedmetadataで更新)
 
   function placeCam() {
     var sw = stage.clientWidth, sh = stage.clientHeight;
     if (!sw || !sh) return;
     if (layout === 'side' && camOn) {
-      // 並べる方式: 小窓は右端に4:3で固定、動画はその左側に全部見える。上下だけ動かせる
-      camWrap.style.aspectRatio = '4 / 3';
+      // 並べる方式: 丸窓は右端に固定、動画はその左側に全部見える。上下だけ動かせる
       var cwp = camWrap.offsetWidth / sw * 100, chp = camWrap.offsetHeight / sh * 100;
       mainWrap.style.right = (cwp + MARGIN * 2) + '%';
       divider.style.display = 'block';
@@ -358,8 +357,7 @@
       camWrap.style.top = sy + '%';
       return;
     }
-    // ワイプ方式: 動画は全画面、小窓はカメラ本来の画角で好きな場所に重ねる
-    camWrap.style.aspectRatio = camAspect;
+    // ワイプ方式: 動画は全画面、丸窓を好きな場所に重ねる
     mainWrap.style.right = '0';
     divider.style.display = 'none';
     var cw = camWrap.offsetWidth, ch = camWrap.offsetHeight;
@@ -376,11 +374,7 @@
   }
   function keepInside() { requestAnimationFrame(placeCam); }
   window.addEventListener('resize', keepInside);
-  cam.addEventListener('loadedmetadata', function () {
-    // カメラ本来の画角(4:3 / 16:9)にあわせる
-    if (cam.videoWidth && cam.videoHeight) camAspect = cam.videoWidth + ' / ' + cam.videoHeight;
-    keepInside();
-  });
+  cam.addEventListener('loadedmetadata', keepInside);
   applyRatio();
 
   // 📍 位置ボタン: 右下 → 右上 → 左上 → 左下 の順に移動
@@ -474,7 +468,7 @@
   divider.addEventListener('pointerup', endDivDrag);
   divider.addEventListener('pointercancel', endDivDrag);
 
-  // 右下のつまみをドラッグして大きさを変える(縦横比はカメラの画角のまま・15〜50%)
+  // 右下のつまみをドラッグして大きさを変える(丸のまま・20〜50%)
   var camResize = document.getElementById('camResize');
   var resizing = false;
   camResize.addEventListener('pointerdown', function (e) {
