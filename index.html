@@ -129,6 +129,8 @@
     color: #555; font-size: 2vh; line-height: 3vh; text-align: center;
   }
   #camResize:hover, #camWrap.resizing #camResize { background: var(--accent-light); color: #fff; }
+  /* 並べる方式では大きさは仕切りバーで変えるので、つまみは出さない */
+  #camWrap.side #camResize { display: none; }
   #camWrap video.mirror { transform: scaleX(-1); }
   #camWrap canvas { width: 100%; height: 100%; object-fit: cover; display: none; pointer-events: none; }
   #camWrap canvas.mirror { transform: scaleX(-1); }
@@ -400,6 +402,7 @@
     var side = (layout === 'side');
     layoutBtn.textContent = side ? '🪟 重ねる' : '⬜ 並べる';
     posBtn.style.display = side ? 'none' : '';   // 並べる方式では四隅移動は不要
+    camWrap.classList.toggle('side', side);       // 並べる方式では大きさのつまみも不要(仕切りバーで変える)
     savePref('layout', layout);
     keepInside();
   }
@@ -469,12 +472,16 @@
   divider.addEventListener('pointercancel', endDivDrag);
 
   // 右下のつまみをドラッグして大きさを変える(丸のまま・20〜50%)
+  // 丸の中心から外へ引くと大きく、内へ寄せると小さく。中心は動かさない
+  // (以前は丸の左端からの距離で決めていたため、右下の隅に置くと右へ引けず大きくできなかった)
   var camResize = document.getElementById('camResize');
-  var resizing = false;
+  var resizing = null;
   camResize.addEventListener('pointerdown', function (e) {
     e.stopPropagation();               // 移動のドラッグと区別する
     e.preventDefault();
-    resizing = true;
+    var cr = camWrap.getBoundingClientRect();
+    var cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
+    resizing = { cx: cx, cy: cy, dist: Math.max(1, Math.hypot(e.clientX - cx, e.clientY - cy)), pct: +ratioInput.value };
     camResize.setPointerCapture(e.pointerId);
     camWrap.classList.add('resizing');
     frame.style.pointerEvents = 'none';
@@ -482,15 +489,17 @@
   camResize.addEventListener('pointermove', function (e) {
     if (!resizing) return;
     var sr = stage.getBoundingClientRect();
-    var cr = camWrap.getBoundingClientRect();
-    var pct = (e.clientX - cr.left) / sr.width * 100;
+    var pct = resizing.pct * Math.hypot(e.clientX - resizing.cx, e.clientY - resizing.cy) / resizing.dist;
     pct = Math.max(+ratioInput.min, Math.min(+ratioInput.max, Math.round(pct)));
+    var d = sr.width * pct / 100;      // 新しい直径(px)。中心がずれないよう左上の位置を合わせる
+    camPos.x = (resizing.cx - d / 2 - sr.left) / sr.width * 100;
+    camPos.y = (resizing.cy - d / 2 - sr.top) / sr.height * 100;
     ratioInput.value = pct;
     applyRatio();
   });
   function endResize() {
     if (!resizing) return;
-    resizing = false;
+    resizing = null;
     camWrap.classList.remove('resizing');
     frame.style.pointerEvents = '';
     savePref('camPos', JSON.stringify(camPos));
