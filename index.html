@@ -122,7 +122,7 @@
   #camWrap.dragging { box-shadow: 0 0 0 .5vh var(--accent-light), 0 .6vh 2vh rgba(0,0,0,.45); }
   /* カメラ映像そのものも丸く切り抜く。動画再生中はChromeが映像を別レイヤーで描くため、
      親(#camWrap)の丸い切り抜きが効かず四角がはみ出すことがある(2026-10-23スタッフ報告) */
-  #camWrap { isolation: isolate; }
+  #camWrap { isolation: isolate; container-type: inline-size; } /* 丸の大きさに合わせて文字を伸び縮み */
   #camWrap video, #camWrap canvas { border-radius: 50%; clip-path: circle(50%); }
   #camWrap video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
   /* 右下のつまみ: ドラッグで大きさを変える(丸窓のふちの右下=斜め45度の位置に置く) */
@@ -142,7 +142,7 @@
   #camWrap.blurOn canvas { display: block; }
   #camOff {
     position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
-    color: #aaa; font-size: 15px; text-align: center; line-height: 1.6; padding: 8px;
+    color: #aaa; font-size: clamp(10px, 5.5cqi, 22px); text-align: center; line-height: 1.5; padding: 14%;
   }
 
   #endedOverlay {
@@ -523,16 +523,37 @@
   applyMirror();
 
   // ---- カメラ ----
-  function cameraUnavailable() {
+  // 断られた理由を、黒い丸の中とメニューに出す(2026-11-05:理由が分からず原因を絞れなかったため)
+  function cameraReason(err) {
+    var name = (err && err.name) || '';
+    if (/NotReadable|TrackStart|Abort/.test(name)) {
+      return { short: 'ほかの画面やソフトが使用中', hint: '通話ツールのカメラをオフ→<br>「📷 カメラ切」を2回押す', name: name };
+    }
+    if (/NotAllowed|PermissionDenied|Security/.test(name)) {
+      return { short: 'カメラの使用が許可されていません', hint: 'アドレス欄の左のマークで<br>カメラを「許可」に', name: name };
+    }
+    if (/NotFound|DevicesNotFound|Overconstrained/.test(name)) {
+      return { short: 'カメラが見つかりません', hint: '下の▼から選び直せます', name: name };
+    }
+    if (name === 'NoMediaDevices') {
+      return { short: 'このブラウザではカメラを使えません', hint: 'Chromeで開いてください', name: name };
+    }
+    return { short: 'カメラが使えません', hint: '下の▼から選び直せます', name: name || '不明' };
+  }
+
+  function cameraUnavailable(err) {
+    var r = cameraReason(err);
+    camOff.innerHTML = '<div>カメラが使えません<br><b style="color:#fff">' + r.short + '</b><br>' + r.hint +
+      '<br><span style="font-size:.75em;color:#777">(' + r.name + ')</span></div>';
     camOff.style.display = 'flex';
-    camStatus.textContent = 'カメラ: 使えません(許可されていないか、他のソフトが使用中)';
+    camStatus.textContent = 'カメラ: 使えません(' + r.short + ' / ' + r.name + ')';
     camStatus.className = 'ng';
     camRetry.style.display = 'inline-block';
   }
 
   function startCamera(deviceId) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      cameraUnavailable();
+      cameraUnavailable({ name: 'NoMediaDevices' });
       return Promise.resolve();
     }
     if (camStream) {
@@ -550,7 +571,7 @@
       if (deviceId) savePref('cameraId', deviceId);
       return listCameras();
     }).catch(function (err) {
-      cameraUnavailable();
+      cameraUnavailable(err);
     });
   }
 
